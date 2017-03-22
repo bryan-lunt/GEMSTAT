@@ -47,12 +47,6 @@ double ExprFunc::predictExpr( const SiteVec& _sites, int length, const vector< d
     for ( int i = 1; i <= n; i++ )
     {
         bindingWts.push_back( par.maxBindingWts[ sites[i].factorIdx ] * factorConcs[sites[i].factorIdx] * sites[i].prior_probability * sites[i].wtRatio );
-        double samee = par.maxBindingWts[sites[i].factorIdx]*factorConcs[sites[i].factorIdx]*sites[i].prior_probability*sites[i].wtRatio;
-        if(samee != samee)
-        {
-            cout << "DEBUG: samee for " << i << "\t" << sites[i].factorIdx << "\t" <<  par.maxBindingWts[sites[i].factorIdx] <<"\t" << factorConcs[sites[i].factorIdx] <<"\t" << sites[i].prior_probability <<"\t" << sites[i].wtRatio << endl;
-            exit(1);
-        }
     }
 
     // Logistic model
@@ -111,39 +105,16 @@ double ExprFunc::compPartFuncOff() const
     for ( int i = 1; i <= n; i++ )
     {
         double sum = Zt[boundaries[i]];
-        if( sum != sum )
-        {
-            cout << "DEBUG: sum nan" << "\t" << Zt[ boundaries[i] ] <<  endl;
-            exit(1);
-        }
-        //cout << "DEBUG: sum = " << n << endl;
+
         for ( int j = boundaries[i] + 1; j < i; j++ )
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
-            //cout << "compFactorInt: " << compFactorInt( sites[ i ], sites[ j ] ) << "\t";
-            //cout << "Z[j]: " << Z[ j ] << endl;
-            double old_sum = sum;
             sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
-            if( sum != sum || isinf( sum ))
-            {
-                cout << "Old sum:\t" << old_sum << endl;
-                cout << "Factors:\t" << sites[ i ].factorIdx << "\t" << sites[ j ].factorIdx << endl;
-                cout << "compFactorInt:\t" << compFactorInt( sites[ i ], sites[ j ] ) << endl;
-                cout << "Z[j]:\t" << Z[ j ] << endl;
-                cout << i << "\t" << j << "\t" << par.factorIntMat( (sites[i]).factorIdx, (sites[j]).factorIdx ) << endl;
-                cout << "DEBUG: sum nan/inf\t"<< sum << endl;
-                exit(1);
-            }
         }
 
         Z[i] = bindingWts[ i ] * sum;
-        if( Z[i]!=Z[i] )
-        {
-            cout << "DEBUG: Z bindingWts[i]: " << sites[i].factorIdx << "\t" << bindingWts[ sites[i].factorIdx ] <<"\t" << sum << endl;
-            exit(1);
-        }
+
         Zt[i] = Z[i] + Zt[i - 1];
-        //cout << "debug: Zt[i] = " << Zt[i] << endl;
     }
 
     // the partition function
