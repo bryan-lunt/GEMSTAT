@@ -66,6 +66,13 @@ class ExprFunc
         // compute the paritition function when the BTM is bound: Direct model
         double compPartFuncOnDirect() const;
 
+        //Absolutely disgusting
+        // compute the paritition function when the BTM is bound: Direct model
+        double compPartFunc_RatesO() const;
+        double compPartFunc_RatesA() const;
+        double compPartFunc_RatesB() const;
+        double compPartFunc_RatesAB() const;
+
         // compute the paritition function when the BTM is bound: Quenching model
         double compPartFuncOnQuenching() const;
 

@@ -49,43 +49,24 @@ double ExprFunc::predictExpr( const SiteVec& _sites, int length, const vector< d
         bindingWts.push_back( par.maxBindingWts[ sites[i].factorIdx ] * factorConcs[sites[i].factorIdx] * sites[i].prior_probability * sites[i].wtRatio );
     }
 
-    // Logistic model
-    if ( modelOption == LOGISTIC )
-    {
-                                                  // total occupancy of each factor
-        vector< double > factorOcc( motifs.size(), 0 );
-        for ( int i = 1; i < sites.size(); i++ )
-        {
-            factorOcc[ sites[i].factorIdx ] += bindingWts[i] / ( 1.0 + bindingWts[i] );
-        }
-        double totalEffect = 0;
-        //         cout << "factor\toccupancy\ttxp_effect" << endl;
-        for ( int i = 0; i < motifs.size(); i++ )
-        {
-            double effect = par.txpEffects[i] * factorOcc[i];
-            totalEffect += effect;
-            //             cout << i << "\t" << factorOcc[i] << "\t" << effect << endl;
 
-            // length correction
-            //             totalEffect = totalEffect / (double)length;
-        }
-        //         return par.expRatio * logistic( log( par.basalTxp ) + totalEffect );
-        return logistic( par.basalTxps[ seq_num ] + totalEffect );
-    }
+    double Z_O = compPartFunc_RatesO();
+    double Z_A = compPartFunc_RatesA();
+    double Z_B = compPartFunc_RatesB();
+    double Z_AB = compPartFunc_RatesAB();
 
-    // Thermodynamic models: Direct, Quenching, ChrMod_Unlimited and ChrMod_Limited
-    // compute the partition functions
-    double Z_off = compPartFuncOff();
-    //cout << "Z_off = " << Z_off << endl;
-    double Z_on = compPartFuncOn();
-    //cout << "Z_on = " << Z_on << endl;
+    double Z_total = Z_O + Z_A + Z_B + Z_AB;
 
-    // compute the expression (promoter occupancy)
-    double efficiency = Z_on / Z_off;
-    //cout << "efficiency = " << efficiency << endl;
-    //cout << "basalTxp = " << par.basalTxps[ seq_num ] << endl;
-    double promoterOcc = efficiency * par.basalTxps[ seq_num ] / ( 1.0 + efficiency * par.basalTxps[ seq_num ] /** ( 1 + par.pis[ seq_num ] )*/ );
-    return promoterOcc;
+    double prob_A = (Z_A + Z_AB) / Z_total;
+    double prob_B = (Z_B + Z_AB) / Z_total;
+
+
+
+    //TODO: Handle K_max idea
+
+    return (prob_A*prob_B*par.pis[seq_num])/(prob_A + prob_B*par.pis[seq_num]);
+
+
 }
 
 ModelType ExprFunc::modelOption = QUENCHING;
@@ -216,6 +197,117 @@ double ExprFunc::compPartFuncOnDirect() const
             cout << "DEBUG 1: " << Zt[i] << "\t" << bindingWts[i]*par.txpEffects[sites[i].factorIdx]*(Zt[ i - 1] + 1) << endl;
         if( repIndicators[ sites[ i ].factorIdx ] )
             cout << "DEBUG 2: " << Zt[i] << "\t" << bindingWts[i]*par.repEffects[sites[i].factorIdx]*(Zt[ i - 1] + 1) << endl;*/
+    }
+
+    return Zt[n];
+}
+
+double ExprFunc::compPartFunc_RatesO() const
+{
+    int n = sites.size() - 1;
+    // initialization
+    vector< double > Z( n + 1 );
+    Z[0] = 1.0;
+    vector< double > Zt( n + 1 );
+    Zt[0] = 1.0;
+
+    // recurrence
+    for ( int i = 1; i <= n; i++ )
+    {
+        double sum = Zt[boundaries[i]];
+
+        for ( int j = boundaries[i] + 1; j < i; j++ )
+        {
+            if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
+            sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
+        }
+
+        Z[i] = bindingWts[ i ] * sum;
+
+        Zt[i] = Z[i] + Zt[i - 1];
+    }
+
+    // the partition function
+    // 	double Z_bind = 1;
+    // 	for ( int i = 0; i < sites.size(); i++ ) {
+    // 		Z_bind += Z[ i ];
+    // 	}
+    return Zt[n];
+}
+
+double ExprFunc::compPartFunc_RatesA() const
+{
+    int n = sites.size() - 1;
+
+    // initialization
+    vector< double > Z( n + 1 );
+    Z[0] = 1.0;
+    vector< double > Zt( n + 1 );
+    Zt[0] = 1.0;
+
+    // recurrence
+    for ( int i = 1; i <= n; i++ )
+    {
+        double sum = Zt[boundaries[i]];
+        for ( int j = boundaries[i] + 1; j < i; j++ )
+        {
+            if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
+            sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
+        }
+        Z[ i ] = bindingWts[ i ] * par.txpEffects[ sites[ i ].factorIdx ] * sum;
+        Zt[i] = Z[i] + Zt[i - 1];
+    }
+
+    return Zt[n];
+}
+
+double ExprFunc::compPartFunc_RatesB() const
+{
+    int n = sites.size() - 1;
+
+    // initialization
+    vector< double > Z( n + 1 );
+    Z[0] = 1.0;
+    vector< double > Zt( n + 1 );
+    Zt[0] = 1.0;
+
+    // recurrence
+    for ( int i = 1; i <= n; i++ )
+    {
+        double sum = Zt[boundaries[i]];
+        for ( int j = boundaries[i] + 1; j < i; j++ )
+        {
+            if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
+            sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
+        }
+        Z[ i ] = bindingWts[ i ] * par.repEffects[ sites[ i ].factorIdx ] * sum;
+        Zt[i] = Z[i] + Zt[i - 1];
+    }
+
+    return Zt[n];
+}
+
+double ExprFunc::compPartFunc_RatesAB() const
+{
+    int n = sites.size() - 1;
+
+    // initialization
+    vector< double > Z( n + 1 );
+    Z[0] = 1.0;
+    vector< double > Zt( n + 1 );
+    Zt[0] = 1.0;
+
+    // recurrence
+    for ( int i = 1; i <= n; i++ )
+    {
+        double sum = Zt[boundaries[i]];
+        for ( int j = boundaries[i] + 1; j < i; j++ )
+        {
+            if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
+            sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
+        }
+        Z[ i ] = bindingWts[ i ] * par.txpEffects[ sites[ i ].factorIdx ] * par.repEffects[ sites[ i ].factorIdx ] * sum;
+        Zt[i] = Z[i] + Zt[i - 1];
     }
 
     return Zt[n];

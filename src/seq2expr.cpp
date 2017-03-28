@@ -48,7 +48,7 @@ int main( int argc, char* argv[] )
 
     bool cmdline_one_qbtm_per_crm = false;
     bool cmdline_one_beta = false;
-    
+
     string lower_bound_file; ExprPar lower_bound_par; bool lower_bound_par_read = false;
     string upper_bound_file; ExprPar upper_bound_par; bool upper_bound_par_read = false;
     string free_fix_indicator_filename;
@@ -338,7 +338,7 @@ int main( int argc, char* argv[] )
 
     // read the roles of factors
     vector< bool > actIndicators( nFactors, true );
-    vector< bool > repIndicators( nFactors, false );
+    vector< bool > repIndicators( nFactors, true );
     if ( !factorInfoFile.empty() )
     {
 	int readRet = readFactorRoleFile(factorInfoFile, factorIdxMap, actIndicators, repIndicators);
@@ -435,10 +435,11 @@ int main( int argc, char* argv[] )
         ASSERT_MESSAGE(par_init.my_space == PROB_SPACE,"This should never happen: Preconditions not met for -et option. This is a programming error, and not the fault of the user. For now, you can try avoiding the -et commandline option, and contact the software maintainer.");
         par_init.energyThrFactors = energyThrFactors;
     }
-    
+
     if ( !upper_bound_file.empty() ){
 	try{
 		upper_bound_par = param_factory->load( upper_bound_file );
+    upper_bound_par.my_space = PROB_SPACE;
 		upper_bound_par = param_factory->changeSpace(upper_bound_par, ENERGY_SPACE);
 		upper_bound_par_read = true;
 	}catch (int& e){
@@ -446,10 +447,11 @@ int main( int argc, char* argv[] )
 		exit( 1 );
 	}
     }
-    
+
     if ( !lower_bound_file.empty() ){
 	try{
 		lower_bound_par = param_factory->load( lower_bound_file );
+    lower_bound_par.my_space = PROB_SPACE;
 		lower_bound_par = param_factory->changeSpace(lower_bound_par, ENERGY_SPACE);
 		lower_bound_par_read = true;
 	}catch (int& e){
@@ -457,7 +459,7 @@ int main( int argc, char* argv[] )
 		exit( 1 );
 	}
     }
-    
+
     //Check AGAIN that the indicator_bool will be the right shape for the parameters that are read.
     vector < double > all_pars_for_test;
     par_init.getRawPars(all_pars_for_test, coopMat, actIndicators, repIndicators);
@@ -523,7 +525,7 @@ int main( int argc, char* argv[] )
     if(lower_bound_par_read){
 	predictor->param_factory->setMinimums(lower_bound_par);
     }
-    
+
     // random number generator
     gsl_rng* rng;
     gsl_rng_env_setup();
