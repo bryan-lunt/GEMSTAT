@@ -64,7 +64,7 @@ double ExprFunc::predictExpr( const SiteVec& _sites, int length, const vector< d
 
     //TODO: Handle K_max idea
 
-    return (prob_A*prob_B*par.pis[seq_num])/(prob_A + prob_B*par.pis[seq_num]);
+    return (prob_A*prob_B*par.pis[0])/(prob_A + prob_B*par.pis[0]);
 
 
 }
