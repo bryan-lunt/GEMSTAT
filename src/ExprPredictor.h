@@ -110,7 +110,7 @@ class ExprPredictor
         }
         int nFactors() const
         {
-            return motifs.size();
+            return expr_model.motifs.size();
         }
         int nConds() const
         {
@@ -191,7 +191,6 @@ class ExprPredictor
         const vector <SiteVec>& r_seqSites;
         const vector< int >& r_seqLengths;        // lengths of all sequences
         const Matrix& exprData;                   // expressions of the corresponding sequences across multiple conditions
-        const vector< Motif >& motifs;            // TF binding motifs
         const Matrix& factorExprData;             // [TF] of all factors over multiple conditions
         const vector < int >& axis_start;
         const vector < int >& axis_end;

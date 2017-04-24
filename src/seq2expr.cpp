@@ -27,6 +27,8 @@
 #include "ExprModel.h"
 #include "ExprPredictor.h"
 
+#include "ObjFunc.h"
+
 int main( int argc, char* argv[] )
 {
     // command line processing
@@ -45,6 +47,9 @@ int main( int argc, char* argv[] )
     bool read_factor_thresh = false;
     double eTF = 0.60;
     unsigned long initialSeed = time(0);
+
+    double l1 = 0.0;
+    double l2 = 0.0;
 
     bool cmdline_one_qbtm_per_crm = false;
     bool cmdline_one_beta = false;
@@ -119,9 +124,13 @@ int main( int argc, char* argv[] )
 	    par_out_file = argv[ ++i ]; //output file for pars at the en
   else if ( !strcmp("-onebeta", argv[ i ]))
       cmdline_one_beta = true;
+  else if ( !strcmp("-l1", argv[ i ]))
+      l1 = atof(argv[ ++i ]);
+  else if ( !strcmp("-l2", argv[ i ]))
+      l2 = atof(argv[ ++i ]);
 	else if ( !strcmp("-lower_bound", argv[ i ]))
 	    lower_bound_file = argv[ ++i ];
-        else if ( !strcmp("-upper_bound", argv[ i ]))
+  else if ( !strcmp("-upper_bound", argv[ i ]))
 	    upper_bound_file = argv[ ++i ];
     }
 
@@ -462,7 +471,7 @@ int main( int argc, char* argv[] )
 
     //Check AGAIN that the indicator_bool will be the right shape for the parameters that are read.
     vector < double > all_pars_for_test;
-    par_init.getRawPars(all_pars_for_test, coopMat, actIndicators, repIndicators);
+    par_init.getRawPars(all_pars_for_test );
     ASSERT_MESSAGE(all_pars_for_test.size() == indicator_bool.size(), "For some reason, the number of entries in free_fix did not match the number of free parameters.\n"
 		  "Remember that whatever model, there are 3 parameters for every transcription factor\n");
     all_pars_for_test.clear();//Won't be used again.
@@ -518,12 +527,39 @@ int main( int argc, char* argv[] )
 
     // create the expression predictor
     ExprPredictor* predictor = new ExprPredictor( seqs, seqSites, r_seqSites, seqLengths, r_seqLengths, exprData, motifs, factorExprData, expr_model, indicator_bool, motifNames, axis_start, axis_end, axis_wts );
-    //predictor->param_factory = param_factory;
+
+    //Setup regularization
+    if(0.0 != l1 || 0.0 != l2){
+      cerr << "INFO: Regularization was turned on and will be used. l1 = " << l1 << " l2 = " << l2 << " ."<< endl;
+
+      ExprPar tmp_centers = predictor->param_factory->create_expr_par();
+      ExprPar tmp_l1 = predictor->param_factory->create_expr_par();
+      ExprPar tmp_l2 = predictor->param_factory->create_expr_par();
+
+      //TODO: add an option to read l1 and l2 values from a file.
+      vector< double > tmp_l12_vector;
+      tmp_l1.getRawPars(tmp_l12_vector);
+      std::fill(tmp_l12_vector.begin(),tmp_l12_vector.end(),l1);
+      tmp_l1 = predictor->param_factory->create_expr_par(tmp_l12_vector, ENERGY_SPACE);
+
+      tmp_l2.getRawPars(tmp_l12_vector);
+      std::fill(tmp_l12_vector.begin(),tmp_l12_vector.end(),l2);
+      tmp_l2 = predictor->param_factory->create_expr_par(tmp_l12_vector, ENERGY_SPACE);
+
+
+      RegularizedObjFunc *tmp_reg_obj_func = new RegularizedObjFunc(predictor->trainingObjective,
+                                              tmp_centers,
+                                              tmp_l1,
+                                              tmp_l2
+                                            );
+      predictor->trainingObjective = tmp_reg_obj_func;
+    }
+
     if(upper_bound_par_read){
-	predictor->param_factory->setMaximums(upper_bound_par);
+    	predictor->param_factory->setMaximums(upper_bound_par);
     }
     if(lower_bound_par_read){
-	predictor->param_factory->setMinimums(lower_bound_par);
+    	predictor->param_factory->setMinimums(lower_bound_par);
     }
 
     // random number generator
