@@ -1,6 +1,6 @@
 
 #Test that it can do basic learning of a very simplified input
-AT_SETUP([Test enforcement of par bounds])
+AT_SETUP([Test enforcement of free_fix])
 
 AT_DATA([seqs.fa],[>test
 AAAAAAAATGGT
@@ -36,6 +36,13 @@ basal_transcription = 0.03
 0.61
 ]])
 
+AT_DATA([start.par],[[foo     0.1  1.0 0.001
+basal_transcription = 0.01
+0.00000000001
+0.1
+0.5567
+]])
+
 AT_DATA([ff.txt],[[1
 1
 1
@@ -45,11 +52,7 @@ AT_DATA([ff.txt],[[1
 ]])
 
 
-AT_CHECK([testexec seq2expr -ff ff.txt -lower_bound lower.par -upper_bound upper.par -s seqs.fa -e expr.tab -m factors.wtmx -f factor_expr.tab -et 0.6 -na 10 -o Direct -oo SSE -fo 1.out -po 1.par > 1_stdout 2> 1_stderr ; cat 1.par | sed 's/[[[[:space:]]]]*$//'], [0], [[foo	7	4	1
-basal_transcription = 0.03
-1
-3
-0.6
+AT_CHECK([testexec seq2expr -p start.par -ff ff.txt -lower_bound lower.par -upper_bound upper.par -s seqs.fa -e expr.tab -m factors.wtmx -f factor_expr.tab -na 10 -o Direct -oo SSE -fo 1.out -po 1.par > 1_stdout 2> 1_stderr ; tail -n1 1.par | sed 's/[[[[:space:]]]]*$//'], [0], [[0.5567
 ]])
 
 AT_CLEANUP
