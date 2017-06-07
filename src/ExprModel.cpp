@@ -1,6 +1,7 @@
 #include "ExprPredictor.h"
 
 #include "ExprModel.h"
+#include "rates/RatesExprFunc.h"
 
 ExprModel::ExprModel( ModelType _modelOption, bool _one_qbtm_per_crm, vector< Motif>& _motifs, FactorIntFunc* _intFunc, int _maxContact, IntMatrix& _coopMat, vector< bool >& _actIndicators, vector< bool>& _repIndicators, IntMatrix& _repressionMat, double _repressionDistThr ) : modelOption( _modelOption), one_qbtm_per_crm( _one_qbtm_per_crm), motifs( _motifs), intFunc( _intFunc), maxContact( _maxContact), coopMat( _coopMat ), actIndicators( _actIndicators), repIndicators( _repIndicators), repressionMat( _repressionMat), repressionDistThr( _repressionDistThr)
 {
@@ -15,6 +16,7 @@ ModelType getModelOption( const string& modelOptionStr )
     if ( toupperStr( modelOptionStr ) == "QUENCHING" ) return QUENCHING;
     if ( toupperStr( modelOptionStr ) == "CHRMOD_UNLIMITED" ) return CHRMOD_UNLIMITED;
     if ( toupperStr( modelOptionStr ) == "CHRMOD_LIMITED" ) return CHRMOD_LIMITED;
+    if ( toupperStr( modelOptionStr ) == "RATES" ) return RATES;
 
     cerr << "modelOptionStr is not a valid model option" << endl;
     exit(1);
@@ -28,6 +30,7 @@ string getModelOptionStr( ModelType modelOption )
     if ( modelOption == QUENCHING ) return "Quenching";
     if ( modelOption == CHRMOD_UNLIMITED ) return "ChrMod_Unlimited";
     if ( modelOption == CHRMOD_LIMITED ) return "ChrMod_Limited";
+    if ( modelOption == RATES ) return "Rates";
 
     return "Invalid";
 }
@@ -102,16 +105,20 @@ ExprFunc* ExprModel::createNewExprFunc( const ExprPar& par ) const
                           this->repressionDistThr,
                           parToPass );
         break;
+    case RATES :
+            parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
+            return_exprfunc = new Rates_ExprFunc( this->motifs,
+                              this->intFunc,
+                              this->actIndicators,
+                              this->maxContact,
+                              this->repIndicators,
+                              this->repressionMat,
+                              this->repressionDistThr,
+                              parToPass );
+            break;
     default :
-      parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
-      return_exprfunc = new ExprFunc( this->motifs,
-                        this->intFunc,
-                        this->actIndicators,
-                        this->maxContact,
-                        this->repIndicators,
-                        this->repressionMat,
-                        this->repressionDistThr,
-                        parToPass );
+      cerr << "Somehow, an invalid model argument was passed. " << endl;
+      assert(false);//Should never reach here.
       break;
   }
 
