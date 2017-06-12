@@ -117,9 +117,8 @@ ExprFunc* ExprModel::createNewExprFunc( const ExprPar& par ) const
                               parToPass );
             break;
     default :
-      cerr << "Somehow, an invalid model argument was passed. " << endl;
-      assert(false);//Should never reach here.
-      break;
+        cerr << "Somehow, an invalid model argument was passed. " << endl;
+        assert(false);//Should never reach here.
   }
 
   return return_exprfunc;
