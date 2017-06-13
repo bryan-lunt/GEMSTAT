@@ -351,7 +351,7 @@ int main( int argc, char* argv[] )
 
     // read the roles of factors
     vector< bool > actIndicators( nFactors, true );
-    vector< bool > repIndicators( nFactors, false );
+    vector< bool > repIndicators( nFactors, cmdline_modelOption == RATES ? true : false );
     if ( !factorInfoFile.empty() )
     {
 	int readRet = readFactorRoleFile(factorInfoFile, factorIdxMap, actIndicators, repIndicators);

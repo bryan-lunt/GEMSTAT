@@ -189,6 +189,7 @@ double ExprFunc::compPartFuncOn() const
     if ( modelOption == CHRMOD_LIMITED ) assert(false);//return compPartFuncOnChrMod_Limited();
 //TODO: A compiler warning is generated here. Shouldn't there be some defensive coding?
     assert(false);
+    return 0.0;
 }
 
 
