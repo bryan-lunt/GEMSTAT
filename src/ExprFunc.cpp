@@ -293,6 +293,11 @@ double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int s
     }
 
   }
+  //Need to change this so that the gradient is analytic at all points.
+  if(k_1 < 0.0)
+    k_1 = 0.0;
+  if(k_2 < 0.0)
+    k_2 = 0.0;
 
   return (k_1*k_2)/(k_1 + k_2);
 
