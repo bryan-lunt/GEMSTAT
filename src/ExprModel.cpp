@@ -106,6 +106,17 @@ ExprFunc* ExprModel::createNewExprFunc( const ExprPar& par ) const
                           this->repressionDistThr,
                           parToPass );
         break;
+    case RATES:
+        parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
+          return_exprfunc = new Rates_ExprFunc( this->motifs,
+                              this->intFunc,
+                              this->actIndicators,
+                              this->maxContact,
+                              this->repIndicators,
+                              this->repressionMat,
+                              this->repressionDistThr,
+                              parToPass );
+        break;
     case MARKOV:
         parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
         return_exprfunc = new Markov_ExprFunc( this->motifs,

@@ -267,6 +267,37 @@ double Markov_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int 
 
 }
 
+double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int seq_num, const vector< double >& marginals){
+
+  int use_seqnum = one_qbtm_per_crm ? 0 : seq_num ;
+
+  double k_1 = par.pis[ use_seqnum ]*par.basalTxps[ use_seqnum];
+  double k_2 = par.basalTxps[ use_seqnum];
+
+
+
+  assert(_sites.size() == marginals.size());
+
+  int n = _sites.size();
+  for(int i = 0; i < n; i++){
+
+    double log_effect = 0.0;
+
+    if( actIndicators[ _sites[ i ].factorIdx ] )
+    {
+        k_1 += marginals[i]*(par.txpEffects[ _sites[ i ].factorIdx ] - 1.0);
+    }
+    if( repIndicators[ _sites[ i ].factorIdx ] )
+    {
+        k_2 += marginals[i]*(par.repEffects[ _sites[ i ].factorIdx ] - 1.0);
+    }
+
+  }
+
+  return (k_1*k_2)/(k_1 + k_2);
+
+}
+
 ModelType ExprFunc::modelOption = QUENCHING;
 
 double ExprFunc::compPartFuncOff() const
