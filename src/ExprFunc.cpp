@@ -271,8 +271,10 @@ double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int s
 
   int use_seqnum = one_qbtm_per_crm ? 0 : seq_num ;
 
-  double k_1 = par.pis[ use_seqnum ]*par.basalTxps[ use_seqnum];
-  double k_2 = par.basalTxps[ use_seqnum];
+  double k_1_numerator = par.pis[ seq_num ] * par.basalTxps[ use_seqnum];
+  double k_1_denominator = 1.0;
+  double k_2_numerator = 1.0 * par.basalTxps[ use_seqnum];
+  double k_2_denominator = 1.0;
 
 
 
@@ -281,23 +283,32 @@ double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int s
   int n = _sites.size();
   for(int i = 0; i < n; i++){
 
-    double log_effect = 0.0;
-
     if( actIndicators[ _sites[ i ].factorIdx ] )
-    {
-        k_1 += marginals[i]*(par.txpEffects[ _sites[ i ].factorIdx ] - 1.0);
+    {   double effect_1 = par.txpEffects[ _sites[ i ].factorIdx ];
+        if(effect_1 >= 1.0){
+          k_1_numerator += marginals[i]*(effect_1-1.0);
+        }else{
+          //Convex combination.
+          //k_1_denominator *= (1.0-marginals[i])*1.0 + marginals[i]*effect_1;
+          k_1_denominator *= (1.0 + marginals[i]*(effect_1 -1.0));
+        }
     }
     if( repIndicators[ _sites[ i ].factorIdx ] )
     {
-        k_2 += marginals[i]*(par.repEffects[ _sites[ i ].factorIdx ] - 1.0);
+        double effect_2 = par.repEffects[ _sites[ i ].factorIdx ];
+        if(effect_2 >= 1.0){
+          k_2_numerator += marginals[i]*(effect_2-1.0);
+        }else{
+          //Convex combination.
+          //k_1_denominator *= (1.0-marginals[i]) + marginals[i]*effect_1;
+          k_2_denominator *= (1.0 + marginals[i]*(effect_2 -1.0));
+        }
     }
 
   }
-  //Need to change this so that the gradient is analytic at all points.
-  if(k_1 < 0.0)
-    k_1 = 0.0;
-  if(k_2 < 0.0)
-    k_2 = 0.0;
+
+  double k_1 = k_1_numerator*k_1_denominator;//yes, times.
+  double k_2 = k_2_numerator*k_2_denominator;//yes, times.
 
   return (k_1*k_2)/(k_1 + k_2);
 
