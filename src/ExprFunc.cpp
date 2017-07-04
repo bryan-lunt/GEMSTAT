@@ -172,20 +172,23 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
   bindingWts.push_back(1.0);
 
     // initialization
-    vector< double > Z( n + 2 );
+    vector< long double > Z( n + 2 );
     Z[0] = 1.0;
-    vector< double > Zt( n + 2 );
+    vector< long double > Zt( n + 2 );
     Zt[0] = 1.0;
 
-    vector< double > backward_Z(n+2,0.0);
+    vector< long double > backward_Z(n+2,0.0);
     backward_Z[backward_Z.size()-1] = 1.0;
-    vector< double > backward_Zt(n+2,0.0);
+
+    vector< long double > backward_Z_sum(n+2,0.0);
+
+    vector< long double > backward_Zt(n+2,0.0);
     backward_Zt[backward_Zt.size()-1] = 1.0;
 
     // recurrence forward
     for ( int i = 1; i <= n; i++ )
     {
-        double sum = Zt[boundaries[i]];
+        long double sum = Zt[boundaries[i]];
         for ( int j = boundaries[i] + 1; j < i; j++ )
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
@@ -198,32 +201,45 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
     // recurrence backward
     for ( int i = n; i >= 1; i-- )
     {
-        double sum = backward_Zt[rev_bounds[i]];
+        long double sum = backward_Zt[rev_bounds[i]];
         for ( int j = rev_bounds[i] - 1; j > i; j-- )
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
             sum += compFactorInt( sites[ i ], sites[ j ] ) * backward_Z[ j ];
         }
+        backward_Z_sum[i] = sum;
         backward_Z[ i ] =  sum*bindingWts[i];
         backward_Zt[i] = backward_Z[i] + backward_Zt[i + 1] ;
     }
 
 
 
-    vector< double > final_Z(Zt.size()-2,0.0);
-    //vector< double > final_Zt(Zt.size()-2,0.0);
+    vector< long double > final_Z(Zt.size()-2,0.0);
+    vector< long double > final_Zt(Zt.size()-2,0.0);
 
     vector< double > bindprobs(Zt.size()-2,0.0);
+    #ifdef DEBUG
+    bool problem = false;
+    #endif
 
     for(int i = 0;i<n;i++){
       //Notice the i+1, we are skipping the pseudosite.
-      final_Z[i] = Z[i+1] * backward_Z[i+1];
-      //final_Zt[i] = Zt[i+1] * backward_Zt[i+1];
+      final_Z[i] = Z[i+1] * backward_Z_sum[i+1];
+      final_Zt[i] = Zt[i+1] * backward_Zt[i+1];
       //bindprobs[i] = final_Z[i] / final_Zt[i];
       bindprobs[i] = final_Z[i] / backward_Zt[1];
+      #ifdef DEBUG
+      if( bindprobs[i] <= 0.0 || bindprobs[i] >= 1.0 ){
+        problem = true;
+      }
+      #else
+      assert(bindprobs[i] >= 0.0);
+      assert(bindprobs[i] <= 1.0);
+      #endif
     }
 
     #ifdef DEBUG
+    if(problem){
     cout << endl;
     cerr << "=====DEBUG=====" << endl;
 
@@ -231,10 +247,13 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
     cerr << "====" << endl;
     cerr << "Backward_Zt " << endl << backward_Zt << endl;
     cerr << "====" << endl;
-    //cerr << "final_Zt " << endl << final_Zt << endl;
-    //cerr << "====" << endl;
+    cerr << "final_Zt " << endl << final_Zt << endl;
+    cerr << "====" << endl;
     cerr << "final_Z " << endl << final_Z << endl;
     cerr << "====" << endl;
+    cerr << "bindprobs " << endl << bindprobs << endl;
+    cerr << "====" << endl;
+    }
     #endif
     return this->expr_from_config(_sites, length, seq_num, bindprobs);
 }
