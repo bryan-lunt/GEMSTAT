@@ -291,11 +291,11 @@ double Markov_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int 
 
 double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int seq_num, const vector< double >& marginals){
 
-  int use_seqnum = one_qbtm_per_crm ? 0 : seq_num ;
+  GEMSTAT_PROMOTER_DATA_T my_promoter = par.getPromoterData( seq_num );
 
-  double k_1_numerator = par.pis[ seq_num ] * par.basalTxps[ use_seqnum];
+  double k_1_numerator = my_promoter.pi*my_promoter.basal_trans;
   double k_1_denominator = 1.0;
-  double k_2_numerator = 1.0 * par.basalTxps[ use_seqnum];
+  double k_2_numerator = 1.0 * my_promoter.basal_trans;
   double k_2_denominator = 1.0;
 
 
