@@ -179,10 +179,8 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
 
     vector< long double > backward_Z(n+2,0.0);
     backward_Z[backward_Z.size()-1] = 1.0;
-
-    vector< long double > backward_Z_sum(n+2,0.0);
-
-    vector< long double > backward_Zt(n+2,0.0);
+    vector< double > backward_Z_sum(n+1,0.0);
+    vector< double > backward_Zt(n+2,0.0);
     backward_Zt[backward_Zt.size()-1] = 1.0;
 
     // recurrence forward
@@ -214,8 +212,11 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
 
 
 
-    vector< long double > final_Z(Zt.size()-2,0.0);
-    vector< long double > final_Zt(Zt.size()-2,0.0);
+    vector< double > final_Z(Zt.size()-2,0.0);
+    #ifdef DEBUG
+    vector< double > final_Zt(Zt.size()-2,0.0);//not used, for debug only.
+    bool problem = false;
+    #endif
 
     vector< double > bindprobs(Zt.size()-2,0.0);
     #ifdef DEBUG
@@ -225,11 +226,13 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
     for(int i = 0;i<n;i++){
       //Notice the i+1, we are skipping the pseudosite.
       final_Z[i] = Z[i+1] * backward_Z_sum[i+1];
+      #ifdef DEBUG
       final_Zt[i] = Zt[i+1] * backward_Zt[i+1];
+      #endif
       //bindprobs[i] = final_Z[i] / final_Zt[i];
       bindprobs[i] = final_Z[i] / backward_Zt[1];
       #ifdef DEBUG
-      if( bindprobs[i] <= 0.0 || bindprobs[i] >= 1.0 ){
+      if( bindprobs[i] <= 0.0 || bindprobs[i] >= 1.0){
         problem = true;
       }
       #else
@@ -242,7 +245,6 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
     if(problem){
     cout << endl;
     cerr << "=====DEBUG=====" << endl;
-
     cerr << "Forward_Zt " << endl << Zt << endl;
     cerr << "====" << endl;
     cerr << "Backward_Zt " << endl << backward_Zt << endl;
@@ -251,8 +253,7 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
     cerr << "====" << endl;
     cerr << "final_Z " << endl << final_Z << endl;
     cerr << "====" << endl;
-    cerr << "bindprobs " << endl << bindprobs << endl;
-    cerr << "====" << endl;
+    cerr << "=====END=======" << endl;
     }
     #endif
     return this->expr_from_config(_sites, length, seq_num, bindprobs);
