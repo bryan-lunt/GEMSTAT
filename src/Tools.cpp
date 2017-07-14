@@ -1054,7 +1054,15 @@ double pgp( const vector<double>& profile1, const vector<double>& profile2, doub
 
 	double pgp = reward - penalty;
 	if (pgp < 0) pgp = 0;
+	#define DEBUG 1
+	#ifdef DEBUG
+	if( pgp < 0.0 || pgp > 1.0){
+		cerr << "Ridiculous PGP value : " << pgp << endl;
+		exit(1);
+	}
+	#else
 	assert(pgp >= 0 && pgp <= 1);
+	#endif
 	return (1-pgp);
 }
 

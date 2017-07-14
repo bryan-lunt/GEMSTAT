@@ -51,7 +51,7 @@ double PGPObjFunc::eval(const vector<vector<double> >& ground_truth, const vecto
           double beta = 1.0;
           #ifdef BETAOPTTOGETHER
         	beta = par->getBetaForSeq(i);
-                totalPGP += pgp(  prediction[i], ground_truth[i], beta, true);
+                totalPGP += pgp(  prediction[i], ground_truth[i], beta, false);
         	#else
         	totalPGP += pgp(  prediction[i], ground_truth[i], beta );
         	#endif

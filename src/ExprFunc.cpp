@@ -1,8 +1,22 @@
 #include <gsl/gsl_math.h>
 
+#include <limits>
+
 #include "ExprPredictor.h"
 #include "ExprPar.h"
 
+typedef double gemstat_dp_t;
+gemstat_dp_t neginf = -std::numeric_limits<gemstat_dp_t>::infinity();
+gemstat_dp_t posinf = std::numeric_limits<gemstat_dp_t>::infinity();
+inline gemstat_dp_t my_log_add(gemstat_dp_t x, gemstat_dp_t y){
+	// https://stackoverflow.com/questions/778047/we-know-log-add-but-how-to-do-log-subtract
+	
+	if(x == neginf)
+		return y;
+	if(y == neginf)
+		return x;
+	return max(x,y) + log1p(exp(-fabs(x-y)));
+}
 
 ExprFunc::ExprFunc( const vector< Motif >& _motifs, const FactorIntFunc* _intFunc, const vector< bool >& _actIndicators, int _maxContact, const vector< bool >& _repIndicators, const IntMatrix& _repressionMat, double _repressionDistThr, const ExprPar& _par ) : motifs( _motifs ), intFunc( _intFunc ), actIndicators( _actIndicators ), maxContact( _maxContact ), repIndicators( _repIndicators ), repressionMat( _repressionMat ), repressionDistThr( _repressionDistThr )
 {
@@ -59,7 +73,14 @@ void ExprFunc::setupBindingWeights(const vector< double >& factorConcs){
 }
 
 double ExprFunc::predictExpr( const SiteVec& _sites, int length, const Condition& in_condition, int seq_num ){
-  return this->predictExpr(_sites,length, in_condition.concs, seq_num);
+  double to_return = this->predictExpr(_sites,length, in_condition.concs, seq_num);
+  if(to_return < 0.0 || to_return != to_return){
+	cerr << "returning a nonsense expression prediction " << to_return << endl;
+	exit(1);
+  }
+  assert(to_return >= 0.0); //Positive expression
+  assert(!(to_return != to_return)); //not NaN
+  return to_return;
 }
 
 double ExprFunc::predictExpr( const SiteVec& _sites, int length, const vector< double >& factorConcs, int seq_num )
@@ -78,10 +99,21 @@ double ExprFunc::predictExpr( const SiteVec& _sites, int length, const vector< d
     //cout << "Z_on = " << Z_on << endl;
 
     // compute the expression (promoter occupancy)
-    double efficiency = Z_on / Z_off;
+    double efficiency = exp(Z_on - Z_off);
     //cout << "efficiency = " << efficiency << endl;
     //cout << "basalTxp = " << par.basalTxps[ seq_num ] << endl;
-    double promoterOcc = efficiency * par.basalTxps[ seq_num ] / ( 1.0 + efficiency * par.basalTxps[ seq_num ] /** ( 1 + par.pis[ seq_num ] )*/ );
+    
+    GEMSTAT_PROMOTER_DATA_T my_promoter = par.getPromoterData( seq_num );
+
+    double promoterOcc = efficiency * my_promoter.basal_trans / ( 1.0 + efficiency * my_promoter.basal_trans /** ( 1 + par.pis[ seq_num ] )*/ );
+    if(promoterOcc < 0.0 || promoterOcc != promoterOcc){
+	cerr << "Ridiculous in Direct!" << endl;
+	cerr << "efficiency " << efficiency << endl;
+	cerr << "Z_on" << Z_on << endl;
+	cerr << "Z_off" << Z_off << endl;
+	cerr << "basal " << my_promoter.basal_trans << endl; //TODO: I think I just found the bug.
+	cerr << "=====" << endl;
+	}
     return promoterOcc;
 }
 
@@ -111,7 +143,8 @@ double Logistic_ExprFunc::predictExpr( const SiteVec& _sites, int length, const 
       //             totalEffect = totalEffect / (double)length;
   }
   //         return par.expRatio * logistic( log( par.basalTxp ) + totalEffect );
-  return logistic( par.basalTxps[ seq_num ] + totalEffect );
+  GEMSTAT_PROMOTER_DATA_T my_promoter = par.getPromoterData( seq_num );
+  return logistic( my_promoter.basal_trans + totalEffect );
 }
 
 double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const vector< double >& factorConcs, int seq_num )
@@ -172,67 +205,64 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
   bindingWts.push_back(1.0);
 
     // initialization
-    vector< long double > Z( n + 2 );
-    Z[0] = 1.0;
-    vector< long double > Zt( n + 2 );
-    Zt[0] = 1.0;
+    vector< gemstat_dp_t > Z( n + 2 );
+    Z[0] = 0.0;
+    vector< gemstat_dp_t > Zt( n + 2 );
+    Zt[0] = 0.0;
 
-    vector< long double > backward_Z(n+2,0.0);
-    backward_Z[backward_Z.size()-1] = 1.0;
-    vector< double > backward_Z_sum(n+1,0.0);
-    vector< double > backward_Zt(n+2,0.0);
-    backward_Zt[backward_Zt.size()-1] = 1.0;
+    vector< gemstat_dp_t > backward_Z(n+2,neginf);
+    backward_Z[backward_Z.size()-1] = 0.0;
+    vector< gemstat_dp_t > backward_Z_sum(n+1,neginf);
+    vector< gemstat_dp_t > backward_Zt(n+2,neginf);
+    backward_Zt[backward_Zt.size()-1] = 0.0;
 
     // recurrence forward
     for ( int i = 1; i <= n; i++ )
     {
-        long double sum = Zt[boundaries[i]];
+        gemstat_dp_t sum = Zt[boundaries[i]];
         for ( int j = boundaries[i] + 1; j < i; j++ )
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
-            sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
+            sum = my_log_add(sum, log(compFactorInt( sites[ i ], sites[ j ] )) + Z[ j ]);
         }
-        Z[ i ] = bindingWts[ i ] * sum;
-        Zt[i] = Z[i] + Zt[i - 1];
+        Z[ i ] = log(bindingWts[ i ]) + sum;
+        Zt[i] = my_log_add(Z[i] , Zt[i - 1]);
     }
 
     // recurrence backward
     for ( int i = n; i >= 1; i-- )
     {
-        long double sum = backward_Zt[rev_bounds[i]];
+        gemstat_dp_t sum = backward_Zt[rev_bounds[i]];
         for ( int j = rev_bounds[i] - 1; j > i; j-- )
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
-            sum += compFactorInt( sites[ i ], sites[ j ] ) * backward_Z[ j ];
+            sum = my_log_add(sum, log(compFactorInt( sites[ i ], sites[ j ] )) + backward_Z[ j ]);
         }
         backward_Z_sum[i] = sum;
-        backward_Z[ i ] =  sum*bindingWts[i];
-        backward_Zt[i] = backward_Z[i] + backward_Zt[i + 1] ;
+        backward_Z[ i ] =  sum+log(bindingWts[i]);
+        backward_Zt[i] = my_log_add(backward_Z[i] , backward_Zt[i + 1] );
     }
 
+    #define DEBUG 1
 
-
-    vector< double > final_Z(Zt.size()-2,0.0);
+    vector< gemstat_dp_t > final_Z(Zt.size()-2,0.0);
     #ifdef DEBUG
-    vector< double > final_Zt(Zt.size()-2,0.0);//not used, for debug only.
+    vector< gemstat_dp_t > final_Zt(Zt.size()-2,0.0);//not used, for debug only.
     bool problem = false;
     #endif
 
     vector< double > bindprobs(Zt.size()-2,0.0);
-    #ifdef DEBUG
-    bool problem = false;
-    #endif
 
     for(int i = 0;i<n;i++){
       //Notice the i+1, we are skipping the pseudosite.
-      final_Z[i] = Z[i+1] * backward_Z_sum[i+1];
+      final_Z[i] = Z[i+1] + backward_Z_sum[i+1];
       #ifdef DEBUG
-      final_Zt[i] = Zt[i+1] * backward_Zt[i+1];
+      final_Zt[i] = Zt[i+1] + backward_Zt[i+1];
       #endif
       //bindprobs[i] = final_Z[i] / final_Zt[i];
-      bindprobs[i] = final_Z[i] / backward_Zt[1];
+      bindprobs[i] = exp(final_Z[i] - backward_Zt[1]);
       #ifdef DEBUG
-      if( bindprobs[i] <= 0.0 || bindprobs[i] >= 1.0){
+      if( bindprobs[i] < 0.0 || bindprobs[i] > 1.0){
         problem = true;
       }
       #else
@@ -253,7 +283,10 @@ double Markov_ExprFunc::predictExpr( const SiteVec& _sites, int length, const ve
     cerr << "====" << endl;
     cerr << "final_Z " << endl << final_Z << endl;
     cerr << "====" << endl;
+    cerr << "bindprobs " << endl << bindprobs << endl;
+    cerr << "====" << endl;
     cerr << "=====END=======" << endl;
+    exit(1);
     }
     #endif
     return this->expr_from_config(_sites, length, seq_num, bindprobs);
@@ -333,7 +366,8 @@ double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int s
   double k_1 = k_1_numerator*k_1_denominator;//yes, times.
   double k_2 = k_2_numerator*k_2_denominator;//yes, times.
 
-  return (k_1*k_2)/(k_1 + k_2);
+  //return (k_1*k_2)/(k_1 + k_2);
+  return (k_1*k_2)/(k_1 + k_2 + k_1*k_2); //Added a third arc for transcription with a rate of 1.0, should prevent its going infinitely fast.
 
 }
 
@@ -347,15 +381,15 @@ double ExprFunc::compPartFuncOff() const
 
     int n = sites.size() - 1;
     // initialization
-    vector< double > Z( n + 1 );
-    Z[0] = 1.0;
-    vector< double > Zt( n + 1 );
-    Zt[0] = 1.0;
+    vector< gemstat_dp_t > Z( n + 1 );
+    Z[0] = 0.0;
+    vector< gemstat_dp_t > Zt( n + 1 );
+    Zt[0] = 0.0;
 
     // recurrence
     for ( int i = 1; i <= n; i++ )
     {
-        double sum = Zt[boundaries[i]];
+        gemstat_dp_t sum = Zt[boundaries[i]];
         if( sum != sum )
         {
             cout << "DEBUG: sum nan" << "\t" << Zt[ boundaries[i] ] <<  endl;
@@ -367,8 +401,8 @@ double ExprFunc::compPartFuncOff() const
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
             //cout << "compFactorInt: " << compFactorInt( sites[ i ], sites[ j ] ) << "\t";
             //cout << "Z[j]: " << Z[ j ] << endl;
-            double old_sum = sum;
-            sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
+            gemstat_dp_t old_sum = sum;
+            sum = my_log_add(sum, log(compFactorInt( sites[ i ], sites[ j ] )) + Z[ j ]);
             if( sum != sum || isinf( sum ))
             {
                 cout << "Old sum:\t" << old_sum << endl;
@@ -381,13 +415,13 @@ double ExprFunc::compPartFuncOff() const
             }
         }
 
-        Z[i] = bindingWts[ i ] * sum;
+        Z[i] = log(bindingWts[ i ]) + sum;
         if( Z[i]!=Z[i] )
         {
             cout << "DEBUG: Z bindingWts[i]: " << sites[i].factorIdx << "\t" << bindingWts[ sites[i].factorIdx ] <<"\t" << sum << endl;
             exit(1);
         }
-        Zt[i] = Z[i] + Zt[i - 1];
+        Zt[i] = my_log_add(Z[i] , Zt[i - 1]);
         //cout << "debug: Zt[i] = " << Zt[i] << endl;
     }
 
@@ -455,45 +489,60 @@ double ExprFunc::compPartFuncOn() const
 }
 
 
+
 double Direct_ExprFunc::compPartFuncOn() const
 {
     int n = sites.size() - 1;
 
     // initialization
-    vector< double > Z( n + 1 );
-    Z[0] = 1.0;
-    vector< double > Zt( n + 1 );
-    Zt[0] = 1.0;
+    vector< gemstat_dp_t > Z( n + 1 );
+    Z[0] = 0.0;
+    vector< gemstat_dp_t > Zt( n + 1 );
+    Zt[0] = 0.0;
 
     // recurrence
     for ( int i = 1; i <= n; i++ )
     {
-        double sum = Zt[boundaries[i]];
+        gemstat_dp_t sum = Zt[boundaries[i]];
         for ( int j = boundaries[i] + 1; j < i; j++ )
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
-            sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
+            sum = my_log_add(sum,log(compFactorInt( sites[ i ], sites[ j ] )) + Z[ j ]);
         }
         //Z[i] = bindingWts[ i ] * par.txpEffects[ sites[i].factorIdx ] * sum;
         if( actIndicators[ sites[ i ].factorIdx ] )
         {
-            Z[ i ] = bindingWts[ i ] * par.txpEffects[ sites[ i ].factorIdx ] * sum;
+            Z[ i ] = log(bindingWts[ i ]) + log(par.txpEffects[ sites[ i ].factorIdx ]) + sum;
             //cout << "1: " << par.txpEffects[ sites[ i ].factorIdx ] << endl;
         }
         if( repIndicators[ sites[ i ].factorIdx ] )
         {
-            Z[ i ] = bindingWts[ i ] * par.repEffects[ sites[ i ].factorIdx ] * sum;
+            Z[ i ] = log(bindingWts[ i ]) + log(par.repEffects[ sites[ i ].factorIdx ]) + sum;
             //cout << "2: " << par.repEffects[ sites[ i ].factorIdx ] << endl;
         }
         //cout << "DEBUG 0: " << sum << "\t" << Zt[ i - 1] << endl;
-        Zt[i] = Z[i] + Zt[i - 1];
+        Zt[i] = my_log_add(Z[i], Zt[i - 1]);
+	if(Zt[i] != Zt[i])
+	{
+		cerr << "nan in dynamic programming!" << endl;
+		cerr << "Zt" << endl;
+		cerr << Zt << endl;
+		cerr << "===" << endl;
+		exit(1);
+	}
         /*if( actIndicators[ sites[ i ].factorIdx ] )
             cout << "DEBUG 1: " << Zt[i] << "\t" << bindingWts[i]*par.txpEffects[sites[i].factorIdx]*(Zt[ i - 1] + 1) << endl;
         if( repIndicators[ sites[ i ].factorIdx ] )
             cout << "DEBUG 2: " << Zt[i] << "\t" << bindingWts[i]*par.repEffects[sites[i].factorIdx]*(Zt[ i - 1] + 1) << endl;*/
     }
 
-    return Zt[n];
+    double to_return = Zt[n];
+    if((to_return < 0.0) || (to_return == posinf) || (to_return != to_return)){
+	cerr << "problem in direct " << endl;
+	cerr << "Z" << endl << Z << endl;
+	cerr << "Zt" << endl << Zt << endl;
+    }
+    return to_return;
 }
 
 
