@@ -356,8 +356,8 @@ double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int s
   double k_1 = k_1_numerator*k_1_denominator;//yes, times.
   double k_2 = k_2_numerator*k_2_denominator;//yes, times.
 
-  return (k_1*k_2)/(k_1 + k_2);
-
+  //return (k_1*k_2)/(k_1 + k_2);
+  return (k_1*k_2)/(k_1 + k_2 + k_1*k_2); //Added a third arc for transcription with a rate of 1.0, should prevent its going infinitely fast.
 }
 
 ModelType ExprFunc::modelOption = QUENCHING;
