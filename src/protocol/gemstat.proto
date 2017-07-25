@@ -1,0 +1,52 @@
+syntax = "proto2";
+
+package gemstat;
+
+import "motif.proto";
+import "math_types.proto";
+
+
+message GSLabeledMatrixMessage {
+    repeated string row_names = 1;
+    repeated string col_names = 2;
+    required GSMatrixMessage storage = 3;
+}
+
+
+message ExprParMessage {
+
+  message TFDataMessage {
+    required double k = 1;
+    required double alpha_txp = 2;
+    optional double alpha_rep = 3 [default = 1.0];
+  }
+
+  message PromoterDataMessage {
+    required double basal_transcription = 1;
+    required double pi = 2;
+    required double beta = 3;
+  }
+
+  repeated TFDataMessage tf_data = 1;
+  repeated double tf_annotation_cutoffs = 2;
+  repeated PromoterDataMessage promoter_data = 3;
+
+  required GSMatrixMessage interaction_weights = 6;
+
+  optional uint32 nSeqs = 7;
+
+}
+
+
+message ExprModelMessage {
+  optional uint32 modelOption = 1;
+  optional bool one_qbtm_per_crm = 2 [default = false];
+  optional bool shared_scaling = 3 [default = false];
+
+  optional MotifMessage motifs = 8;
+
+  required SparseBoolMatrix coopMat = 4;
+  required SparseBoolMatrix repressionMat = 5;
+  optional uint32 maxContact = 6;
+  optional double repressionDistThr = 7;
+}

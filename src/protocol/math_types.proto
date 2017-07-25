@@ -1,0 +1,42 @@
+syntax = "proto2";
+
+package gemstat;
+
+
+message GSVectorMessage {
+  repeated double val = 3;
+}
+
+message GSMatrixMessage {
+  required uint32 i = 1;
+  required uint32 j = 2;
+
+  enum StorageType {
+    DENSE = 0;
+    SPARSE = 1;
+  }
+
+  required StorageType matrix_storage_type = 3;
+
+  message SparseEntry {
+    required uint32 i = 1;
+    required uint32 j = 2;
+    required double val = 3;
+  }
+
+  repeated SparseEntry sparse_storage = 4;
+
+  repeated GSVectorMessage dense_storage = 5;
+}
+
+
+
+message SparseBoolMatrix {
+  message SparseBoolStorage{
+    required uint32 i = 1;
+    required uint32 j = 2;
+    required bool val = 3;
+  }
+
+  repeated SparseBoolStorage storage = 1;
+}

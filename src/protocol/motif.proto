@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+package gemstat;
+
+message MotifMessage {
+  optional string name = 1;
+  optional double pseudocount = 2 [default = 0.0001];
+
+  message MotifPosition {
+    required double A = 1;
+    required double C = 2;
+    required double G = 3;
+    required double T = 4;
+  }
+
+  repeated MotifPosition counts = 3;
+}
