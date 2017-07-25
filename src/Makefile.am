@@ -26,3 +26,5 @@ seq2expr_SOURCES = seq2expr.cpp FactorIntFunc.cpp FactorIntFunc.h ExprModel.cpp 
 seq2expr_LDADD = $(GSL_LIBS) $(NLOPT_LIBS)
 seqannot_SOURCES = seqannot.cpp SeqAnnotator.cpp SeqAnnotator.h Tools.cpp Tools.h Utils.h
 seqannot_LDADD = $(GSL_LIBS) $(NLOPT_LIBS)
+seq2expr_streaming_SOURCES = seq2expr_streaming.cpp FactorIntFunc.cpp FactorIntFunc.h ExprModel.cpp ExprPar.cpp ExprPar.h ExprModel.h PredictorTrainer.h PredictorTrainer.cpp ExprPredictor.cpp ExprPredictor.h SeqAnnotator.cpp SeqAnnotator.h Tools.cpp Tools.h Utils.h IO.cpp IO.h ObjFunc.cpp ObjFunc.h ExprFunc.cpp ExprFunc.h DataSet.cpp DataSet.h
+seq2expr_streaming_LDADD = $(GSL_LIBS) $(NLOPT_LIBS)
