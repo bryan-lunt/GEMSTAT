@@ -125,7 +125,7 @@ class Motif
         Motif( const Matrix& _pwm, const vector< double >& _background );
                                                   // countMatrix in Transfac format
         Motif( const Matrix& countMatrix, double pseudoCount, const vector< double >& _background );
-        void copy( const Motif& other ) { pwm = other.pwm; background = other.background; LLRMat = other.LLRMat; maxSite = other.maxSite; maxLLR = other.maxLLR; }
+        void copy( const Motif& other ) { pwm = other.pwm; background = other.background; LLRMat = other.LLRMat; maxSite = other.maxSite; maxLLR = other.maxLLR; name = string(other.name);}
         Motif( const Motif& other ) { copy( other ); }
 
         // assignment
@@ -154,7 +154,12 @@ class Motif
 
         // output
         friend ostream& operator<<( ostream& os, const Motif& motif );
+
+        const string getName() const;
+        void setName(const string iname);
+
     private:
+        string name;
         Matrix pwm;                               // the position weight matrix: f_i(b), the frequency of b at position i
         vector< double > background;              // background distribution
         Matrix LLRMat;                            // LLR matrix, M(i,b) = log( f_i(b) / p(b) ), where f_i(b) is the frequency of b at position i of PWM, and p(b) the frequency of b at the background

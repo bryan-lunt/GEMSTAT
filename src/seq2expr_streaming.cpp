@@ -55,7 +55,12 @@ static string message_str_from_stream(istream &stream){
     return result;
 }
 
-Matrix message_to_labeled_matrix(const string& in_message, vector<string>& rownames, vector<string>& colnames);
+Matrix message_to_labeled_matrix(const gemstat::GSLabeledMatrixMessage& in_labeled_matrix_msg, vector<string>& rownames, vector<string>& colnames);
+Motif message_to_motif(const gemstat::MotifMessage& in_motif_msg, vector< double > in_background);
+ExprModel* message_to_new_exprmodel(const gemstat::ExprModelMessage& in_model_msg, vector< Motif >& default_motifs);
+void delete_model(ExprModel *model_to_delete);
+
+void free_fix_from_par(const ExprPar& param_ff, vector<bool>& indicator_bool);
 
 int main( int argc, char* argv[] )
 {
@@ -215,20 +220,22 @@ int main( int argc, char* argv[] )
 
     vector < string > expr_condNames = condNames;
 
-    //TODO
     // read the motifs
     vector< Motif > motifs;
     vector< string > motifNames;
     vector< double > background = createNtDistr( gcContent );
     int nFactors = motifs.size();
 
-    //TODO
     // read the factor expression data
     Matrix factorExprData;
 
     //TODO
     //Initialize the dataset that is actually provided
-    DataSet training_dataset(factorExprData,exprData);
+    DataSet *training_dataset = NULL;
+
+    vector < int > axis_start;
+    vector < int > axis_end;
+    vector < double > axis_wts;
 
 
     //TODO: R_SEQ Either remove this feature or un-comment it.
@@ -238,7 +245,16 @@ int main( int argc, char* argv[] )
 
     ExprModel *the_model = NULL;
     ExprPredictor *predictor = NULL;
+    ParFactory *param_factory = NULL;
+    ExprPar the_parameters;
+    vector <bool> indicator_bool(0,false);
 
+
+    bool dataset_dirty = true;
+    bool param_factory_dirty = true;
+    bool predictor_dirty = true;
+    bool annotations_dirty = false;
+    bool user_annotations = false;
     /************************************
     * Begin parsing the interactive input
     *************************************/
@@ -257,47 +273,64 @@ int main( int argc, char* argv[] )
       break;
     }
     else if(0 == tokens[0].compare("MODEL")){
-    //TODO Read Model
-    /*
-    FactorIntFunc* intFunc;
-    if ( intOption == BINARY ) intFunc = new FactorIntFuncBinary( coopDistThr );
-    else if ( intOption == GAUSSIAN ) intFunc = new FactorIntFuncGaussian( coopDistThr, factorIntSigma );
-    else if ( intOption == HELICAL ) intFunc = new FactorIntFuncHelical( coopDistThr );
-    else
-    {
-        cerr << "Interaction Function is invalid " << endl; exit( 1 );
-    }
+        std::string one_message = message_str_from_stream(cin);
+        gemstat::ExprModelMessage input_model_msg = gemstat::ExprModelMessage();
+        input_model_msg.ParseFromString(one_message);
 
-    if( NULL == the_model ) {
-      delete the_model;
-      the_model = NULL;
-    }
-    the_model = new expr_model( cmdline_modelOption, cmdline_one_qbtm_per_crm, motifs, intFunc, maxContact, coopMat, actIndicators, repIndicators, repressionMat, repressionDistThr);
-    expr_model.shared_scaling = cmdline_one_beta;
-    */
+        if( NULL != the_model ) {
+          delete_model(the_model);
+          the_model = NULL;
+        }
 
+        the_model = message_to_new_exprmodel(input_model_msg, motifs);
+        //In case motifs were updated
+        motifNames.clear();
+        for(int k=0;k<motifs.size();k++){
+          motifNames.push_back(motifs[k].getName());
+        }
 
-    //input_model();
+        if( NULL != param_factory){
+          delete param_factory;
+          param_factory = NULL;
+        }
+        param_factory = new ParFactory(*the_model, nSeqs);
+        the_parameters = param_factory->create_expr_par(); //Currently, code further down expects par_init to be in PROB_SPACE.
+        the_parameters = param_factory->changeSpace(the_parameters, PROB_SPACE);
+
+        param_factory_dirty = false;
+        annotations_dirty = true;
     }
     else if(0 == tokens[0].compare("TARGET_EXPRESSION")){
     //TODO read_expression
       std::string one_message = message_str_from_stream(cin);
+      gemstat::GSLabeledMatrixMessage read_a_labeled_matrix = gemstat::GSLabeledMatrixMessage();
+      read_a_labeled_matrix.ParseFromString(one_message);
+
       vector<string> target_rownames;
       vector<string> target_colnames;
 
-      exprData = message_to_labeled_matrix(one_message,target_rownames,target_colnames);
+      exprData = message_to_labeled_matrix(read_a_labeled_matrix,target_rownames,target_colnames);
+      dataset_dirty = true;
     }
     else if(0 == tokens[0].compare("FACTOR_CONCENTRATIONS")){
       //read factor concentrations
       std::string one_message = message_str_from_stream(cin);
+      gemstat::GSLabeledMatrixMessage read_a_labeled_matrix = gemstat::GSLabeledMatrixMessage();
+      read_a_labeled_matrix.ParseFromString(one_message);
+
       vector<string> factor_rownames;
       vector<string> factor_colnames;
 
-      factorExprData = message_to_labeled_matrix(one_message,factor_rownames,factor_colnames);
+      factorExprData = message_to_labeled_matrix(read_a_labeled_matrix,factor_rownames,factor_colnames);
+      dataset_dirty = true;
     }
     else if(0 == tokens[0].compare("CLEAR_MOTIFS")){
       motifs.clear();
       motifNames.clear();
+      for(int i;i<seqSites.size();i++){//also invalidates annotations
+        seqSites[i].clear();
+      }
+      annotations_dirty=true;
     }
     else if(0 == tokens[0].compare("MOTIF")){
       //read one motif
@@ -305,18 +338,11 @@ int main( int argc, char* argv[] )
       gemstat::MotifMessage cmdl_motif_message = gemstat::MotifMessage();
       cmdl_motif_message.ParseFromString(one_message);
 
-      Matrix countMat( cmdl_motif_message.counts_size(), 4 );
-      for(int i = 0;i< cmdl_motif_message.counts_size();i++){
-        const gemstat::MotifMessage::MotifPosition& one_pos = cmdl_motif_message.counts(i);
-        countMat(i,0) = one_pos.a();
-        countMat(i,1) = one_pos.c();
-        countMat(i,2) = one_pos.g();
-        countMat(i,3) = one_pos.t();
+      Motif mot_from_msg = message_to_motif(cmdl_motif_message,background);
 
-      }
-
-      motifs.push_back( Motif(countMat,cmdl_motif_message.pseudocount(),background) );
-      motifNames.push_back( cmdl_motif_message.name() );
+      motifs.push_back( mot_from_msg );
+      motifNames.push_back( mot_from_msg.getName() );
+      annotations_dirty = true;
     }
     else if(0 == tokens[0].compare("CLEAR_SEQUENCES")){
       //vector< Sequence > seqs;
@@ -326,6 +352,7 @@ int main( int argc, char* argv[] )
       seqNames.clear();
       seqLengths.clear();
       nSeqs = 0;
+      annotations_dirty = true;
     }
     else if(0 == tokens[0].compare("SEQUENCE")){
       //read_and_annotate_sequences()
@@ -340,34 +367,94 @@ int main( int argc, char* argv[] )
       seqNames.push_back(tmp_seqname);
       seqLengths.push_back(tmp_sequence.size());
       nSeqs += 1;
+      annotations_dirty=true;
     }
     else if(0 == tokens[0].compare("ANNOTATIONS")){
       //Take straight annotations
+      user_annotations = true;
+      annotations_dirty = false;
+    }else if(0 == tokens[0].compare("WEIGHTS")){
+      //input_ax_weights();
+      cerr << "WEIGHTS command is not implemented" << endl;
     }
-    else if(0 == tokens[0].compare("ANNOTATE")){
+    else if(0 == tokens[0].compare("PARAMETER")){
+      //input_ax_weights();
+      //TODO: check vs old to see if we need to invalidate the annotations
+    }
+    else if(0 == tokens[0].compare("CHECKPOINT")){
+
+        // CHECK POINT
+        cout << "CHECKPOINT" << endl;
+        cout << "Sequences:" << endl;
+        for ( int i = 0; i < seqs.size(); i++ ) cout << seqNames[i] << endl << seqs[i] << endl;
+        cout << "Site representation of sequences:" << endl;
+        for ( int i = 0; i < nSeqs; i++ ) {
+          cout << ">" << seqNames[i] << endl;
+          for ( int j = 0; j < seqSites[i].size(); j++ ) cout << seqSites[i][j] << endl;
+        }
+
+
+        cout << "Expression: " << endl << exprData << endl;
+        cout << "Factor expression:" << endl << factorExprData << endl;
+        cout << "Factor motifs:" << endl;
+        for ( int i = 0; i < motifs.size(); i++ ) cout << motifNames[i] << endl << motifs[i] << endl;
+
+        if(NULL != the_model){
+          cout << "MODEL" << endl;
+          cout << "Model Type: " << endl << getModelOptionStr(the_model->modelOption) << endl;
+          cout << "Cooperativity matrix:" << endl << the_model->coopMat << endl;
+          cout << "Activators:" << endl << the_model->actIndicators << endl;
+          cout << "Repressors:" << endl << the_model->repIndicators << endl;
+          cout << "Repression matrix:" << endl << the_model->repressionMat << endl;
+
+          if ( the_model->modelOption == QUENCHING || the_model->modelOption == CHRMOD_LIMITED )
+          {
+              cout << "Maximum_Contact = " << the_model->maxContact << endl;
+          }
+          if ( the_model->modelOption == QUENCHING || the_model->modelOption == CHRMOD_LIMITED || the_model->modelOption == CHRMOD_UNLIMITED )
+          {
+              cout << "Repression_Distance_Threshold = " << the_model->repressionDistThr << endl;
+          }
+
+        }
+      }else if(0 == tokens[0].compare("PREDICT")){
+        // create the expression predictor
+
+      if(dataset_dirty){
+        if(NULL != training_dataset){
+          delete training_dataset;
+          training_dataset = NULL;
+        }
+        training_dataset = new DataSet(factorExprData,exprData);
+        dataset_dirty = false;
+        predictor_dirty = true;
+      }
+
+      if(predictor_dirty && NULL != the_model){
+        if(NULL != predictor){
+          delete predictor;
+          predictor = NULL;
+        }
+        predictor = new ExprPredictor( seqs, seqSites, r_seqSites, seqLengths, r_seqLengths, *training_dataset, motifs, *the_model, indicator_bool, motifNames, axis_start, axis_end, axis_wts );
+        predictor_dirty = false;
+      }
+      //DO PREDICTION
+      //TODO:
+    }
+
+    //END OF if tree , now handle things that were dirtied
+    if((!user_annotations) && annotations_dirty && NULL != the_model){
       //Annotate the sequences we have/MO
       //TODO: need to get this from the current model.
       seqSites.clear();
-
-      vector<double> energyThrFactors(motifs.size(),0.5);
-      SeqAnnotator ann( motifs, energyThrFactors );
+      SeqAnnotator ann( motifs, the_parameters.energyThrFactors );
       for ( int i = 0; i < seqs.size(); i++ )
       {
           seqSites.push_back(SiteVec());
           ann.annot( seqs[ i ], seqSites[ i ] );
       }
-
-    }
-    else if(0 == tokens[0].compare("WEIGHTS")){
-      //input_ax_weights();
-    }
-    else if(0 == tokens[0].compare("PREDICT")){
-      // create the expression predictor
-      if(NULL != predictor){
-        delete predictor;
-        predictor = NULL;
-      }
-      //predictor = new ExprPredictor( seqs, seqSites, r_seqSites, seqLengths, r_seqLengths, training_dataset, motifs, expr_model, indicator_bool, motifNames, axis_start, axis_end, axis_wts );
+      annotations_dirty = false;
+      predictor_dirty = true;
     }
     //Do these later
     /*
@@ -377,8 +464,6 @@ int main( int argc, char* argv[] )
 
 
     load_upper_lower_bounds();
-
-    print_checkpoint();
 
     setup_regularization();
     setup_bounds();
@@ -393,10 +478,8 @@ int main( int argc, char* argv[] )
 }
 //END MAIN
 
-Matrix message_to_labeled_matrix(const string& in_message, vector<string>& rownames, vector<string>& colnames){
-    gemstat::GSLabeledMatrixMessage read_a_labeled_matrix = gemstat::GSLabeledMatrixMessage();
-    read_a_labeled_matrix.ParseFromString(in_message);
-    gemstat::GSMatrixMessage its_storage = read_a_labeled_matrix.storage();
+Matrix message_to_labeled_matrix(const gemstat::GSLabeledMatrixMessage& in_labeled_matrix_msg, vector<string>& rownames, vector<string>& colnames){
+    gemstat::GSMatrixMessage its_storage = in_labeled_matrix_msg.storage();
 
     int max_i = its_storage.i();
     int max_j = its_storage.j();
@@ -406,12 +489,12 @@ Matrix message_to_labeled_matrix(const string& in_message, vector<string>& rowna
     rownames.clear();
     colnames.clear();
 
-    for(int k=0;k<read_a_labeled_matrix.row_names_size();k++){
-      rownames.push_back(read_a_labeled_matrix.row_names(k));
+    for(int k=0;k<in_labeled_matrix_msg.row_names_size();k++){
+      rownames.push_back(in_labeled_matrix_msg.row_names(k));
     }
 
-    for(int k=0;k<read_a_labeled_matrix.col_names_size();k++){
-      colnames.push_back(read_a_labeled_matrix.col_names(k));
+    for(int k=0;k<in_labeled_matrix_msg.col_names_size();k++){
+      colnames.push_back(in_labeled_matrix_msg.col_names(k));
     }
 
     if(its_storage.matrix_storage_type() == gemstat::GSMatrixMessage::DENSE){ //load from dense storage
@@ -432,198 +515,115 @@ Matrix message_to_labeled_matrix(const string& in_message, vector<string>& rowna
     return will_return;
 }
 
+Motif message_to_motif(const gemstat::MotifMessage& in_motif_msg,vector< double > in_background){
+
+  Matrix countMat( in_motif_msg.counts_size(), 4 );
+  for(int i = 0;i< in_motif_msg.counts_size();i++){
+    const gemstat::MotifMessage::MotifPosition& one_pos = in_motif_msg.counts(i);
+    countMat(i,0) = one_pos.a();
+    countMat(i,1) = one_pos.c();
+    countMat(i,2) = one_pos.g();
+    countMat(i,3) = one_pos.t();
+  }
+
+  Motif tmp_motif(countMat,in_motif_msg.pseudocount(),in_background);
+  tmp_motif.setName(in_motif_msg.name());
+  return tmp_motif;
+}
+
+
+ExprModel* message_to_new_exprmodel(const gemstat::ExprModelMessage& in_model_msg, vector< Motif >& default_motifs){
+
+    int nActInd = in_model_msg.act_indicators_size();
+    int nRepInd = in_model_msg.rep_indicators_size();
+    assert(nActInd == nRepInd);
+    int nFactors = nActInd;
+
+
+    IntMatrix *coopMat = new IntMatrix( nFactors, nFactors, false );
+
+    // read the roles of factors
+    vector< bool > *actIndicators = new vector<bool>( nFactors, true );
+    vector< bool > *repIndicators = new vector<bool>( nFactors, false );
+
+    //get the factorinfo
+
+    // read the repression matrix
+    IntMatrix *repressionMat = new IntMatrix( nFactors, nFactors, false );
+    FactorIntFunc* intFunc;
+
+    gemstat::SparseBoolMatrix msg_coop_mat = in_model_msg.coop_mat();
+    for(int k=0;k<msg_coop_mat.storage_size();k++){
+      gemstat::SparseBoolMatrix::SparseBoolStorage one_storage = msg_coop_mat.storage(k);
+      coopMat->setElement(one_storage.i(),one_storage.j(),one_storage.val());
+    }
+
+    for(int k=0;k<in_model_msg.act_indicators_size();k++){
+      (*actIndicators)[k] = in_model_msg.act_indicators(k);
+    }
+
+    for(int k=0;k<in_model_msg.rep_indicators_size();k++){
+      (*repIndicators)[k] = in_model_msg.rep_indicators(k);
+    }
+
+    gemstat::SparseBoolMatrix msg_rep_mat = in_model_msg.repression_mat();
+    for(int k=0;k<msg_rep_mat.storage_size();k++){
+      gemstat::SparseBoolMatrix::SparseBoolStorage one_storage = msg_rep_mat.storage(k);
+      repressionMat->setElement(one_storage.i(),one_storage.j(),one_storage.val());
+    }
+
+    gemstat::FactorIntFuncMessage the_int_option = in_model_msg.interaction_function();
+
+    switch(the_int_option.interaction_type()){
+      case BINARY:
+        intFunc = new FactorIntFuncBinary( the_int_option.coop_dist_thr() );
+        break;
+      case GAUSSIAN:
+        assert(the_int_option.has_factor_int_sigma());
+        intFunc = new FactorIntFuncGaussian( the_int_option.coop_dist_thr(), the_int_option.factor_int_sigma() );
+        break;
+      case HELICAL:
+        intFunc = new FactorIntFuncHelical( the_int_option.coop_dist_thr() );
+        break;
+      default:
+        assert(false);
+        break;
+    }
+
+    ExprModel *ret_ptr = NULL;
+    //Create a new ExprModel with all of the selected options.
+    gemstat::ExprModelMessage_ModelOptionMessage model_option_msg = in_model_msg.model_option();
+    string model_asked_for_in_msg_str = gemstat::ExprModelMessage_ModelOptionMessage_Name(in_model_msg.model_option());
+    //DEBUG
+    cout << "MODEL TYPE " << model_asked_for_in_msg_str << endl;
+    ModelType what_kind_of_model = getModelOption( model_asked_for_in_msg_str );
+
+    //TODO: Continue here
+    ret_ptr = new ExprModel( what_kind_of_model, in_model_msg.one_qbtm_per_crm(),
+      default_motifs, intFunc, in_model_msg.max_contact(),
+      *coopMat, *actIndicators, *repIndicators, *repressionMat,
+      in_model_msg.repression_dist_thr());
+    ret_ptr->shared_scaling = in_model_msg.shared_scaling();
+    return ret_ptr;
+}
+
+void delete_model(ExprModel *model_to_delete){
+  delete &(model_to_delete->coopMat);
+  delete &(model_to_delete->repressionMat);
+  delete &(model_to_delete->actIndicators);
+  delete &(model_to_delete->repressionMat);
+  delete model_to_delete;
+}
 
 /**
-void input_model(){
-  // read the cooperativity matrix
-  int num_of_coop_pairs = 0;
-  IntMatrix coopMat( nFactors, nFactors, false );
-  if ( !coopFile.empty() )
-  {
-int readRet = readEdgelistGraph(coopFile, factorIdxMap, coopMat, false);
-ASSERT_MESSAGE(0 == readRet, "Error reading the cooperativity file");
-
-//Calculate the number of cooperative pairs.
-for(int i = 0;i < nFactors;i++)
-  for(int j=i;j<nFactors;j++)
-    num_of_coop_pairs += coopMat.getElement(i,j);
-  }
-
-  // read the roles of factors
-  vector< bool > actIndicators( nFactors, true );
-  vector< bool > repIndicators( nFactors, false );
-  if ( !factorInfoFile.empty() )
-  {
-int readRet = readFactorRoleFile(factorInfoFile, factorIdxMap, actIndicators, repIndicators);
-      ASSERT_MESSAGE(0 == readRet, "Could not parse the factor information file.");
-  }
-
-  // read the repression matrix
-  IntMatrix repressionMat( nFactors, nFactors, false );
-  if ( !repressionFile.empty() )
-  {
-int readRet = readEdgelistGraph(repressionFile, factorIdxMap, repressionMat, true);
-ASSERT_MESSAGE(0 == readRet, "Error reading the repression file.");
-  }
-
-
-
 
   //Create a new ExprModel with all of the selected options.
   //TODO: Continue here
 
 }
 
-void input_ax_weights(){
-  // read the axis wt file
-  vector < int > axis_start;
-  vector < int > axis_end;
-  vector < double > axis_wts;
-
-  axis_start.clear();
-  axis_end.clear();
-  axis_wts.clear();
-
-  if( !axis_wtFile.empty() )
-  {
-    int readRet = readAxisWeights(axis_wtFile, axis_start, axis_end, axis_wts);
-    ASSERT_MESSAGE(0 == readRet, "Error reading the axis weights (-aw) file.");
-  }
-  else
-  {//Alternative intialization.
-      axis_start.push_back( 0 );
-      axis_end.push_back( condNames.size() - 1 );
-      axis_wts.push_back( 100 );
-  }
-}
-
-void print_checkpoint(){
-
-  // CHECK POINT
-  //     cout << "Sequences:" << endl;
-  //     for ( int i = 0; i < seqs.size(); i++ ) cout << seqNames[i] << endl << seqs[i] << endl;
-  //     cout << "Expression: " << endl << exprData << endl;
-  //     cout << "Factor motifs:" << endl;
-  //     for ( int i = 0; i < motifs.size(); i++ ) cout << motifNames[i] << endl << motifs[i] << endl;
-  //     cout << "Factor expression:" << endl << factorExprData << endl;
-  //     cout << "Cooperativity matrix:" << endl << coopMat << endl;
-  //     cout << "Activators:" << endl << actIndicators << endl;
-  //     cout << "Repressors:" << endl << repIndicators << endl;
-  //     cout << "Repression matrix:" << endl << repressionMat << endl;
-  //     cout << "Site representation of sequences:" << endl;
-  //     for ( int i = 0; i < nSeqs; i++ ) {
-  //         cout << ">" << seqNames[i] << endl;
-  //         for ( int j = 0; j < seqSites[i].size(); j++ ) cout << seqSites[i][j] << endl;
-  //     }
-
-  // print the parameters for running the analysis
-  cout << "Parameters for running the program: " << endl;
-  cout << "Model = " << getModelOptionStr( cmdline_modelOption ) << endl;
-  if ( cmdline_modelOption == QUENCHING || cmdline_modelOption == CHRMOD_LIMITED )
-  {
-      cout << "Maximum_Contact = " << maxContact << endl;
-  }
-  if ( cmdline_modelOption == QUENCHING || cmdline_modelOption == CHRMOD_LIMITED || cmdline_modelOption == CHRMOD_UNLIMITED )
-  {
-      cout << "Repression_Distance_Threshold = " << repressionDistThr << endl;
-  }
-  cout << "Objective_Function = " << getObjOptionStr( ExprPredictor::objOption ) << endl;
-  if ( !coopFile.empty() )
-  {
-      cout << "Interaction_Model = " << getIntOptionStr( intOption ) << endl;
-      cout << "Interaction_Distance_Threshold = " << coopDistThr << endl;
-      if ( intOption == GAUSSIAN ) cout << "Sigma = " << factorIntSigma << endl;
-  }
-  cout << "Search_Option = " << getSearchOptionStr( ExprPar::searchOption ) << endl;
-}
 
 
-void read_and_annotate_sequences(){
-  // site representation of the sequences
-  // TODO: Should this code be removed? If we are using this code, and no command-line option was provided for energyThrFactors, but a .par file was provided, shouldn't it use the thresholds learned there? (So, shouldn't it happen after reading the par file?)
-  // TODO: Relates to issue #19
-  SeqAnnotator ann( motifs, energyThrFactors );
-  if ( annFile.empty() )                        // construct site representation
-  {
-
-      if( dnase_file.empty() )
-      {
-          for ( int i = 0; i < nSeqs; i++ )
-          {
-              //cout << "Annotated sites for CRM: " << seqNames[i] << endl;
-              ann.annot( seqs[ i ], seqSites[ i ] );
-              seqLengths[i] = seqs[i].size();
-          }
-      }
-      else
-      {
-          for ( int i = 0; i < nSeqs; i++ )
-          {
-              //cout << "Annotated sites for CRM: " << seqNames[i] << endl;
-              ifstream dnase_input( dnase_file.c_str() );
-              assert( dnase_input.is_open());
-
-              string temp_s;
-              string temp_gen;
-              string chr;
-              double temp_start, temp_end;
-              vector < double > dnase_start;
-              vector < double > dnase_end;
-              vector < double > scores;
-
-              while( dnase_input >> temp_s )
-              {
-                  dnase_input >> temp_gen >> temp_gen >> temp_gen >> temp_gen >> temp_gen;
-                  dnase_input >> chr;
-                  dnase_input >> temp_gen >> temp_start >> temp_end >> temp_gen;
-                  if( temp_s == seqNames[ i ] )
-                  {
-                      //cout << "Processing for:\t" << temp_s << endl;
-                      dnase_start.clear();
-                      dnase_end.clear();
-                      scores.clear();
-                      ifstream chr_input( ("chr" + chr + ".bed").c_str() );
-                      //cout << "File: " << "chr" + chr + ".bed" << "opened" << endl;
-                      assert( chr_input.is_open() );
-                      double chr_start, chr_end, chr_score;
-                      //cout << "Starting location on chromosome: " << (long long int)temp_start << endl;
-                      //cout << "Ending location on chromosome: " << (long long int)temp_end << endl;
-                      while( chr_input >> temp_gen >> chr_start >> chr_end >> temp_gen >> chr_score )
-                      {
-                          if( ( chr_start < temp_start && chr_end < temp_start ) || ( chr_start > temp_end && chr_end > temp_end ) )
-                          {
-                              ;
-                          }
-                          else
-                          {
-                              dnase_start.push_back( chr_start );
-                              dnase_end.push_back( chr_end );
-                              scores.push_back( chr_score );
-                              //cout << "Inserting: " << (long long int)chr_start << "\t" << (long long int)chr_end << "\t" << chr_score << endl;
-                          }
-                      }
-                      chr_input.close();
-                      break;
-                  }
-              }
-
-              dnase_input.close();
-              ann.annot( seqs[ i ], seqSites[ i ], dnase_start, dnase_end, scores, temp_start );
-              seqLengths[i] = seqs[i].size();
-          }
-      }
-  }                                             // read the site representation and compute the energy of sites
-  else
-  {
-      rval = readSites( annFile, factorIdxMap, seqSites, true );
-      assert( rval != RET_ERROR );
-      for ( int i = 0; i < nSeqs; i++ )
-      {
-          ann.compEnergy( seqs[i], seqSites[i] );
-          seqLengths[i] = seqs[i].size();
-      }
-  }
-}
 
 void setup_regularization(){
   //Setup regularization
@@ -740,21 +740,18 @@ void train_the_predictor(){
 
 }
 
-load_init_params(){
-  //Setup a parameter factory
-  ParFactory *param_factory = new ParFactory(expr_model, nSeqs);
-
-  // read the initial parameter values
-  ExprPar par_init = param_factory->create_expr_par(); //Currently, code further down expects par_init to be in PROB_SPACE.
-  par_init = param_factory->changeSpace(par_init, PROB_SPACE); //This will cause the expected behaviour, but may hide underlying bugs.
-                                                              //Code that needs par_init in a particular space should use an assertion, and do the space conversion itself.
-  if ( !parFile.empty() ){
-      try{
-        par_init = param_factory->load( parFile );
-      }catch (int& e){
-          cerr << "Cannot read parameters from " << parFile << endl;
-          exit( 1 );
-      }
-  }
-}
 */
+
+
+void free_fix_from_par(const ExprPar& param_ff, vector<bool>& indicator_bool){
+
+      vector < double > tmp_ff;
+      param_ff.getRawPars(tmp_ff);
+      indicator_bool.clear();
+      for(vector<double>::iterator iter = tmp_ff.begin();iter != tmp_ff.end();++iter){
+        double one_val = *iter;
+        if( -0.00000001 < one_val && 0.0000001 > one_val){ indicator_bool.push_back(false); }
+        else if (0.9999999 < one_val && 1.0000001 > one_val){ indicator_bool.push_back(true);}
+        else{ ASSERT_MESSAGE(false,"Illegal value in indicator_bool file");}
+      }
+}

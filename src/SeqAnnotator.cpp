@@ -396,7 +396,7 @@ void Motif::sample( const gsl_rng* rng, Sequence& elem, bool strand ) const
 }
 
 
-int Motif::load( const string& file, const vector< double >& background, string& name )
+int Motif::load( const string& file, const vector< double >& background, string& out_name )
 {
     vector< Motif > motifs;
     vector< string > names;
@@ -404,7 +404,7 @@ int Motif::load( const string& file, const vector< double >& background, string&
     if ( rval == RET_ERROR ) return RET_ERROR;
 
     copy( motifs[ 0 ] );
-    name = names[ 0 ];
+    out_name = names[ 0 ];
     return rval;
 }
 
@@ -417,6 +417,15 @@ int Motif::load( const string& file, const vector< double >& background )
     return rval;
 }
 
+const string Motif::getName() const
+{
+    return name;
+}
+
+void Motif::setName(const string iname)
+{
+    name = iname;
+}
 
 ostream& operator<<( ostream& os, const Motif& motif )
 {
@@ -500,7 +509,9 @@ int readMotifs( const string& file, const vector< double >& background, vector< 
 
         // create the motif
         names.push_back( string( name ) );
-        motifs.push_back( Motif( countMat, pseudoCount, background ) );
+        Motif tmp_motif = Motif( countMat, pseudoCount, background );
+        tmp_motif.setName(string(name));
+        motifs.push_back( tmp_motif );
     } while ( !fin.eof() );
 
     return 0;

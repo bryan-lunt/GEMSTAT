@@ -38,7 +38,17 @@ message ExprParMessage {
 
 }
 
+message FactorIntFuncMessage {
+  enum FactorIntType {
+    BINARY = 0;
+    GAUSSIAN = 1;
+    HELICAL = 2;
+  }
 
+  required FactorIntType interaction_type = 1 [default = BINARY];
+  required uint32 coop_dist_thr = 2;
+  optional double factor_int_sigma = 3;
+}
 
 message ExprModelMessage {
   enum ModelOptionMessage {
@@ -55,10 +65,16 @@ message ExprModelMessage {
   optional bool one_qbtm_per_crm = 2 [default = false];
   optional bool shared_scaling = 3 [default = false];
 
+  optional SparseBoolMatrix coop_mat = 4;
+  optional SparseBoolMatrix repression_mat = 5;
+  optional uint32 max_contact = 6 [default = 1];
+  optional double repression_dist_thr = 7;
+
   optional MotifMessage motifs = 8;
 
-  required SparseBoolMatrix coopMat = 4;
-  required SparseBoolMatrix repressionMat = 5;
-  optional uint32 maxContact = 6;
-  optional double repressionDistThr = 7;
+  required FactorIntFuncMessage interaction_function = 9;
+
+  repeated bool act_indicators = 10 [packed = true];
+  repeated bool rep_indicators = 11 [packed = true];
+
 }
