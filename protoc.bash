@@ -1,3 +1,3 @@
 #!/bin/bash
 
-protoc -I=src/streaming/ --cpp_out=src/streaming/ --python_out=src/streaming/ src/streaming/gemstat.proto
+protoc -I=src/protocol/ --cpp_out=src/protocol/ --python_out=src/protocol/ src/protocol/*.proto

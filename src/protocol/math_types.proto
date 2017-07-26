@@ -2,11 +2,6 @@ syntax = "proto2";
 
 package gemstat;
 
-
-message GSVectorMessage {
-  repeated double val = 3;
-}
-
 message GSMatrixMessage {
   required uint32 i = 1;
   required uint32 j = 2;
@@ -26,7 +21,7 @@ message GSMatrixMessage {
 
   repeated SparseEntry sparse_storage = 4;
 
-  repeated GSVectorMessage dense_storage = 5;
+  repeated double dense_storage = 5 [packed = true];
 }
 
 

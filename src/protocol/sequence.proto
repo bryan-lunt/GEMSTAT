@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+package gemstat;
+
+message SequenceMessage{
+  required string seq = 1;
+  optional string name = 2;
+  optional string header = 3;
+}
