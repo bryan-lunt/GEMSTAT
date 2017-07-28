@@ -58,6 +58,7 @@ static string message_str_from_stream(istream &stream){
 Matrix message_to_labeled_matrix(const gemstat::GSLabeledMatrixMessage& in_labeled_matrix_msg, vector<string>& rownames, vector<string>& colnames);
 Motif message_to_motif(const gemstat::MotifMessage& in_motif_msg, vector< double > in_background);
 ExprModel* message_to_new_exprmodel(const gemstat::ExprModelMessage& in_model_msg, vector< Motif >& default_motifs);
+void message_to_par(const gemstat::ExprParMessage& in_msg, ExprPar& target_par);
 
 void delete_model(ExprModel*& model_to_delete){
   delete &(model_to_delete->coopMat);
@@ -353,55 +354,15 @@ int main( int argc, char* argv[] )
       ExprPar new_parameters = param_factory->create_expr_par(); //Currently, code further down expects par_init to be in PROB_SPACE.
       new_parameters = param_factory->changeSpace(new_parameters, PROB_SPACE);
 
-      cerr << "TF DATA SIZE " << par_msg.tf_data_size() << endl;
-      //WTF WTF WTF? tf_data_size is 1 too big, but it seems right on the python end.
-      //damnit
-      for(int i = 0;i<par_msg.tf_data_size();i++){
+      /////TODO
+      message_to_par(par_msg, new_parameters);
 
-        gemstat::ExprParMessage::TFDataMessage one_tf_entry = par_msg.tf_data(i);
-        if(i>=new_parameters.maxBindingWts.size()){
-          cerr << "DEBUG Warning received extra tf parameters when getting par vector." << endl;
-          cerr << "i=" << i << " : " << one_tf_entry.k() << " : " << one_tf_entry.alpha_txp() << " : " << one_tf_entry.alpha_rep() << endl;
-          continue;
-        }
-
-        //cerr << "GyA : " << one_tf_entry.k() << " : " << one_tf_entry.alpha_txp() << " : " << one_tf_entry.alpha_rep() << endl;
-        new_parameters.maxBindingWts[i] = one_tf_entry.k();
-        new_parameters.txpEffects[i] = one_tf_entry.alpha_txp();
-        new_parameters.repEffects[i] = one_tf_entry.alpha_rep();
-      }
-
-      cerr << "PROMOTER DATA SIZE " << par_msg.promoter_data_size() << endl;
-      for(int i = 0;i<par_msg.promoter_data_size();i++){
-        gemstat::ExprParMessage::PromoterDataMessage one_prom_data = par_msg.promoter_data(i);
-        if(i < new_parameters.basalTxps.size()){ new_parameters.basalTxps[i] = one_prom_data.basal_transcription(); }
-        if(i < new_parameters.pis.size()){ new_parameters.pis[i] = one_prom_data.pi(); }
-        if(i < new_parameters.betas.size()){ new_parameters.betas[i] = one_prom_data.beta(); }
-      }
-
-      //cerr << "DEBUG " << par_msg.has_interaction_weights() << " : " << par_msg.interaction_weights().sparse_storage_size() << endl;
-      //cerr << "DEBUG " << the_parameters.factorIntMat; cerr << endl;
-      //cerr << "DEBUG new_interact" << new_parameters.factorIntMat.nRows() << endl << new_parameters.factorIntMat; cerr << endl;
-      gemstat::GSMatrixMessage sparse_interaction_matrix = par_msg.interaction_weights();
-      for(int i = 0;i<sparse_interaction_matrix.sparse_storage_size();i++){
-        gemstat::GSMatrixMessage::SparseEntry one_sparse_entry = sparse_interaction_matrix.sparse_storage(i);
-        new_parameters.factorIntMat.setElement(one_sparse_entry.i(),one_sparse_entry.j(),one_sparse_entry.val());
-        new_parameters.factorIntMat.setElement(one_sparse_entry.j(),one_sparse_entry.i(),one_sparse_entry.val());
-      }
-
-
-      for(int i = 0;i<par_msg.tf_annotation_cutoffs_size();i++){
-        new_parameters.energyThrFactors[i] = par_msg.tf_annotation_cutoffs(i);
-      }
       //Check if the thresholds differ, which would mean that the annotations need to be updated.
       for(int i = 0;i<new_parameters.energyThrFactors.size();i++){
         annotations_dirty = annotations_dirty || (the_parameters.energyThrFactors[i] != new_parameters.energyThrFactors[i]);
       }
 
-      cerr << the_parameters.energyThrFactors << endl;
-      cerr << new_parameters.energyThrFactors << endl;
-
-      the_parameters = ExprPar(new_parameters);
+      the_parameters = new_parameters;
 
     }
     else if(0 == tokens[0].compare("CHECKPOINT")){
@@ -825,6 +786,51 @@ void train_the_predictor(){
 }
 
 */
+void message_to_par(const gemstat::ExprParMessage& in_msg, ExprPar& target_par){
+  cerr << "TF DATA SIZE " << in_msg.tf_data_size() << endl;
+  //WTF WTF WTF? tf_data_size is 1 too big, but it seems right on the python end.
+  //damnit
+  for(int i = 0;i<in_msg.tf_data_size();i++){
+
+    gemstat::ExprParMessage::TFDataMessage one_tf_entry = in_msg.tf_data(i);
+    if(i>=target_par.maxBindingWts.size()){
+      cerr << "DEBUG Warning received extra tf parameters when getting par vector." << endl;
+      cerr << "i=" << i << " : " << one_tf_entry.k() << " : " << one_tf_entry.alpha_txp() << " : " << one_tf_entry.alpha_rep() << endl;
+      continue;
+    }
+
+    //cerr << "GyA : " << one_tf_entry.k() << " : " << one_tf_entry.alpha_txp() << " : " << one_tf_entry.alpha_rep() << endl;
+    target_par.maxBindingWts[i] = one_tf_entry.k();
+    target_par.txpEffects[i] = one_tf_entry.alpha_txp();
+    target_par.repEffects[i] = one_tf_entry.alpha_rep();
+  }
+
+  //cerr << "PROMOTER DATA SIZE " << in_msg.promoter_data_size() << endl;
+  for(int i = 0;i<in_msg.promoter_data_size();i++){
+    gemstat::ExprParMessage::PromoterDataMessage one_prom_data = in_msg.promoter_data(i);
+    if(i < target_par.basalTxps.size()){ target_par.basalTxps[i] = one_prom_data.basal_transcription(); }
+    if(i < target_par.pis.size()){ target_par.pis[i] = one_prom_data.pi(); }
+    if(i < target_par.betas.size()){ target_par.betas[i] = one_prom_data.beta(); }
+  }
+
+  //cerr << "DEBUG " << in_msg.has_interaction_weights() << " : " << in_msg.interaction_weights().sparse_storage_size() << endl;
+  //cerr << "DEBUG " << the_parameters.factorIntMat; cerr << endl;
+  //cerr << "DEBUG new_interact" << target_par.factorIntMat.nRows() << endl << target_par.factorIntMat; cerr << endl;
+  gemstat::GSMatrixMessage sparse_interaction_matrix = in_msg.interaction_weights();
+  for(int i = 0;i<sparse_interaction_matrix.sparse_storage_size();i++){
+    gemstat::GSMatrixMessage::SparseEntry one_sparse_entry = sparse_interaction_matrix.sparse_storage(i);
+    target_par.factorIntMat.setElement(one_sparse_entry.i(),one_sparse_entry.j(),one_sparse_entry.val());
+    target_par.factorIntMat.setElement(one_sparse_entry.j(),one_sparse_entry.i(),one_sparse_entry.val());
+  }
+
+
+  for(int i = 0;i<in_msg.tf_annotation_cutoffs_size();i++){
+    target_par.energyThrFactors[i] = in_msg.tf_annotation_cutoffs(i);
+  }
+
+
+}
+
 
 
 void free_fix_from_par(const ExprPar& param_ff, vector<bool>& indicator_bool){
