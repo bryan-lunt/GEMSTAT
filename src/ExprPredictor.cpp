@@ -338,6 +338,8 @@ double ExprPredictor::evalObjective( const ExprPar& par )
 
 int ExprPredictor::predict_all(const ExprPar& par, vector< vector< double > > & predictions) const{
 
+		ExprPar tmp_par = this->param_factory->changeSpace(par, PROB_SPACE);
+
 		vector< int > seqLengths( seqs.size() );
 		for( int i = 0; i < seqs.size(); i++ ){
 			seqLengths[i] = seqs[i].size();
@@ -358,16 +360,15 @@ int ExprPredictor::predict_all(const ExprPar& par, vector< vector< double > > & 
 		predictions.clear();
 		//Create predictions for every sequence and condition
 		for ( int i = 0; i < nSeqs(); i++ ) {
-
-				vector< double > predictedExprs(nConds());
+				predictions.push_back(vector< double >(nConds()));
 				for ( int j = 0; j < nConds(); j++ ) {
 						double predicted = -1;
 							Condition concs = training_data.getCondition( j );
 							predicted = func->predictExpr( seqSites[ i ], seqLengths[i], concs, i );
 						// predicted expression for the i-th sequence at the j-th condition
-						predictedExprs[i] = predicted;
+						predictions[i][j] = predicted;
 				}
-				predictions.push_back(predictedExprs);
+
 		}
 
 		return 0;

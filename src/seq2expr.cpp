@@ -495,6 +495,7 @@ int main( int argc, char* argv[] )
                 exit(1);
         }
     }
+    /*
     // CHECK POINT
     //     cout << "Sequences:" << endl;
     //     for ( int i = 0; i < seqs.size(); i++ ) cout << seqNames[i] << endl << seqs[i] << endl;
@@ -531,7 +532,48 @@ int main( int argc, char* argv[] )
         if ( intOption == GAUSSIAN ) cout << "Sigma = " << factorIntSigma << endl;
     }
     cout << "Search_Option = " << getSearchOptionStr( ExprPar::searchOption ) << endl;
+    */
+    // CHECK POINT
+    cout << "CHECKPOINT" << endl;
+    cout << "Sequences:" << endl;
+    for ( int i = 0; i < seqs.size(); i++ ) cout << seqNames[i] << endl << seqs[i] << endl;
+    cout << "Site representation of sequences:" << endl;
+    for ( int i = 0; i < seqs.size(); i++ ) {
+      cout << ">" << seqNames[i] << endl;
+      for ( int j = 0; j < seqSites[i].size(); j++ ){cout << seqSites[i][j] << endl;}
+    }
 
+
+    cout << "Expression: " << endl << exprData << endl;
+    cout << "Factor expression:" << endl << factorExprData << endl;
+
+    if(true){
+      cout << "MODEL" << endl;
+      cout << "Model Type: " << endl << getModelOptionStr(expr_model.modelOption) << endl;
+      cout << "Cooperativity matrix:" << endl << expr_model.coopMat << endl;
+      cout << "Activators:" << endl << expr_model.actIndicators << endl;
+      cout << "Repressors:" << endl << expr_model.repIndicators << endl;
+      cout << "Repression matrix:" << endl << expr_model.repressionMat << endl;
+
+      cout << "Coop distance threshold = " << expr_model.intFunc->getMaxDist() << endl;
+
+      if ( expr_model.modelOption == QUENCHING || expr_model.modelOption == CHRMOD_LIMITED )
+      {
+          cout << "Maximum_Contact = " << expr_model.maxContact << endl;
+      }
+      if ( expr_model.modelOption == QUENCHING || expr_model.modelOption == CHRMOD_LIMITED || expr_model.modelOption == CHRMOD_UNLIMITED )
+      {
+          cout << "Repression_Distance_Threshold = " << expr_model.repressionDistThr << endl;
+      }
+      cout << "Factor motifs (in model):" << endl;
+      for ( int i = 0; i < motifs.size(); i++ ) cout << motifNames[i] << endl << motifs[i] << endl;
+
+    }
+
+    cout << "PARAMETERS " << endl;
+    cout << par_init.maxBindingWts << endl;
+    cout << par_init.txpEffects << endl;
+    cout << par_init.repEffects << endl;
 
 
 
@@ -593,6 +635,20 @@ int main( int argc, char* argv[] )
     cout << "Estimated values of parameters:" << endl;
     par.print( cout, motifNames, coopMat );
     cout << "Performance = " << setprecision( 5 ) << ( ( ExprPredictor::objOption == SSE || ExprPredictor::objOption == PGP ) ? predictor->getObj() : -predictor->getObj() ) << endl;
+
+    //DO PREDICTION
+    //TODO:
+    //int predict( const SiteVec& targetSites, int targetSeqLength, vector< double >& targetExprs, int seq_num ) const;
+    cout << "PREDICTIONS" << endl;
+    vector< vector<double > > prediction_output;
+    predictor->predict_all(par_init, prediction_output);
+
+    //TODO: Actually output the prediction
+    for(int i = 0;i<seqs.size();i++){
+          cout << seqNames[i] << endl;
+          for(int j=0;j<prediction_output[i].size();j++){ prediction_output[i][j] *= par_init.betas[i]; }
+          cout << prediction_output[i] << endl;
+    }
 
     // print the predictions
     writePredictions(outFile, *predictor, training_dataset.exprData, expr_condNames, cmdline_write_gt, true);

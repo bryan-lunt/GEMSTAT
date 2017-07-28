@@ -19,7 +19,7 @@ message ExprParMessage {
   message TFDataMessage {
     required double k = 1;
     required double alpha_txp = 2;
-    optional double alpha_rep = 3 [default = 1.0];
+    required double alpha_rep = 3 [default = 1.0];
   }
 
   message PromoterDataMessage {
@@ -32,9 +32,9 @@ message ExprParMessage {
   repeated double tf_annotation_cutoffs = 2;
   repeated PromoterDataMessage promoter_data = 3;
 
-  required GSMatrixMessage interaction_weights = 6;
+  required GSMatrixMessage interaction_weights = 4;
 
-  optional uint32 nSeqs = 7;
+  optional uint32 nSeqs = 5;
 
 }
 

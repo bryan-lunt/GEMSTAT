@@ -336,13 +336,73 @@ int main( int argc, char* argv[] )
       cout << "Sorry, this feature is not yet implemented." << endl; continue;
       user_annotations = true;
       annotations_dirty = false;
+    }else if(0 == tokens[0].compare("ANNOTATE")){
+      //force annotation
+      annotations_dirty = true;
     }else if(0 == tokens[0].compare("WEIGHTS")){
       //input_ax_weights();
       cerr << "WEIGHTS command is not implemented" << endl;
     }
     else if(0 == tokens[0].compare("PARAMETER")){
-      //input_ax_weights();
+      std::string one_message = message_str_from_stream(cin);
+      gemstat::ExprParMessage par_msg = gemstat::ExprParMessage();
+      par_msg.ParseFromString(one_message);
+
       //TODO: check vs old to see if we need to invalidate the annotations
+      //the_parameters
+      ExprPar new_parameters = param_factory->create_expr_par(); //Currently, code further down expects par_init to be in PROB_SPACE.
+      new_parameters = param_factory->changeSpace(new_parameters, PROB_SPACE);
+
+      cerr << "TF DATA SIZE " << par_msg.tf_data_size() << endl;
+      //WTF WTF WTF? tf_data_size is 1 too big, but it seems right on the python end.
+      //damnit
+      for(int i = 0;i<par_msg.tf_data_size();i++){
+
+        gemstat::ExprParMessage::TFDataMessage one_tf_entry = par_msg.tf_data(i);
+        if(i>=new_parameters.maxBindingWts.size()){
+          cerr << "DEBUG Warning received extra tf parameters when getting par vector." << endl;
+          cerr << "i=" << i << " : " << one_tf_entry.k() << " : " << one_tf_entry.alpha_txp() << " : " << one_tf_entry.alpha_rep() << endl;
+          continue;
+        }
+
+        //cerr << "GyA : " << one_tf_entry.k() << " : " << one_tf_entry.alpha_txp() << " : " << one_tf_entry.alpha_rep() << endl;
+        new_parameters.maxBindingWts[i] = one_tf_entry.k();
+        new_parameters.txpEffects[i] = one_tf_entry.alpha_txp();
+        new_parameters.repEffects[i] = one_tf_entry.alpha_rep();
+      }
+
+      cerr << "PROMOTER DATA SIZE " << par_msg.promoter_data_size() << endl;
+      for(int i = 0;i<par_msg.promoter_data_size();i++){
+        gemstat::ExprParMessage::PromoterDataMessage one_prom_data = par_msg.promoter_data(i);
+        if(i < new_parameters.basalTxps.size()){ new_parameters.basalTxps[i] = one_prom_data.basal_transcription(); }
+        if(i < new_parameters.pis.size()){ new_parameters.pis[i] = one_prom_data.pi(); }
+        if(i < new_parameters.betas.size()){ new_parameters.betas[i] = one_prom_data.beta(); }
+      }
+
+      //cerr << "DEBUG " << par_msg.has_interaction_weights() << " : " << par_msg.interaction_weights().sparse_storage_size() << endl;
+      //cerr << "DEBUG " << the_parameters.factorIntMat; cerr << endl;
+      //cerr << "DEBUG new_interact" << new_parameters.factorIntMat.nRows() << endl << new_parameters.factorIntMat; cerr << endl;
+      gemstat::GSMatrixMessage sparse_interaction_matrix = par_msg.interaction_weights();
+      for(int i = 0;i<sparse_interaction_matrix.sparse_storage_size();i++){
+        gemstat::GSMatrixMessage::SparseEntry one_sparse_entry = sparse_interaction_matrix.sparse_storage(i);
+        new_parameters.factorIntMat.setElement(one_sparse_entry.i(),one_sparse_entry.j(),one_sparse_entry.val());
+        new_parameters.factorIntMat.setElement(one_sparse_entry.j(),one_sparse_entry.i(),one_sparse_entry.val());
+      }
+
+
+      for(int i = 0;i<par_msg.tf_annotation_cutoffs_size();i++){
+        new_parameters.energyThrFactors[i] = par_msg.tf_annotation_cutoffs(i);
+      }
+      //Check if the thresholds differ, which would mean that the annotations need to be updated.
+      for(int i = 0;i<new_parameters.energyThrFactors.size();i++){
+        annotations_dirty = annotations_dirty || (the_parameters.energyThrFactors[i] != new_parameters.energyThrFactors[i]);
+      }
+
+      cerr << the_parameters.energyThrFactors << endl;
+      cerr << new_parameters.energyThrFactors << endl;
+
+      the_parameters = ExprPar(new_parameters);
+
     }
     else if(0 == tokens[0].compare("CHECKPOINT")){
 
@@ -353,14 +413,17 @@ int main( int argc, char* argv[] )
         cout << "Site representation of sequences:" << endl;
         for ( int i = 0; i < seqs.size(); i++ ) {
           cout << ">" << seqNames[i] << endl;
-          for ( int j = 0; j < seqSites[i].size(); j++ ) cout << seqSites[i][j] << endl;
+          for ( int j = 0; j < seqSites[i].size(); j++ ){cout << seqSites[i][j] << endl;}
         }
 
 
         cout << "Expression: " << endl << exprData << endl;
         cout << "Factor expression:" << endl << factorExprData << endl;
-        cout << "Factor motifs:" << endl;
-        for ( int i = 0; i < motifs.size(); i++ ) cout << motifNames[i] << endl << motifs[i] << endl;
+
+        if(NULL == the_model){
+          cout << "Factor motifs:" << endl;
+          for ( int i = 0; i < motifs.size(); i++ ) cout << motifNames[i] << endl << motifs[i] << endl;
+        }
 
         if(NULL != the_model){
           cout << "MODEL" << endl;
@@ -370,6 +433,8 @@ int main( int argc, char* argv[] )
           cout << "Repressors:" << endl << the_model->repIndicators << endl;
           cout << "Repression matrix:" << endl << the_model->repressionMat << endl;
 
+          cout << "Coop distance threshold = " << the_model->intFunc->getMaxDist() << endl;
+
           if ( the_model->modelOption == QUENCHING || the_model->modelOption == CHRMOD_LIMITED )
           {
               cout << "Maximum_Contact = " << the_model->maxContact << endl;
@@ -378,30 +443,48 @@ int main( int argc, char* argv[] )
           {
               cout << "Repression_Distance_Threshold = " << the_model->repressionDistThr << endl;
           }
+          cout << "Factor motifs (in model):" << endl;
+          for ( int i = 0; i < motifs.size(); i++ ) cout << motifNames[i] << endl << motifs[i] << endl;
 
         }
+
+        cout << "PARAMETERS " << endl;
+        cout << the_parameters.maxBindingWts << endl;
+        cout << the_parameters.txpEffects << endl;
+        cout << the_parameters.repEffects << endl;
+
+
       }else if(0 == tokens[0].compare("PREDICT")){
         // create the expression predictor
 
+        if(annotations_dirty){
+          cerr << "ERROR : somehow, annotations are still dirty!" << endl;
+          continue;
+        }
         if(NULL == predictor){
           cout << "ERROR no predictor!" << endl;
           continue;
         }
+
       //DO PREDICTION
       //TODO:
       //int predict( const SiteVec& targetSites, int targetSeqLength, vector< double >& targetExprs, int seq_num ) const;
       vector< vector<double > > prediction_output;
-      predictor->predict_all(the_parameters,prediction_output);
+      predictor->predict_all(the_parameters, prediction_output);
+
+
 
       //TODO: Actually output the prediction
       for(int i = 0;i<seqs.size();i++){
-        cout << seqNames[i] << endl;
-        cout << prediction_output[i] << endl;
+          cout << seqNames[i] << endl;
+          for(int j=0;j<prediction_output[i].size();j++){ prediction_output[i][j] *= the_parameters.betas[i]; }
+          cout << prediction_output[i] << endl;
       }
 
-    }
+    }//END OF if tree , now handle things that were dirtied
 
     if(dataset_dirty){
+      cerr << "CREATING DATASET " << endl;
       predictor_dirty = true;
       if(NULL != training_dataset){
         delete training_dataset;
@@ -412,8 +495,21 @@ int main( int argc, char* argv[] )
         training_dataset = new DataSet(factorExprData,exprData);
         dataset_dirty = false;
       }
-    }//END OF if tree , now handle things that were dirtied
+    }
 
+    if(param_factory_dirty && NULL != the_model){
+      if( NULL != param_factory){
+        delete param_factory;
+        param_factory = NULL;
+      }
+      cerr << "UPDATING PARAM FACTORY" << endl;
+      param_factory = new ParFactory(*the_model, seqs.size());
+      the_parameters = param_factory->create_expr_par(); //Currently, code further down expects par_init to be in PROB_SPACE.
+      the_parameters = param_factory->changeSpace(the_parameters, PROB_SPACE);
+
+      param_factory_dirty = false;
+      predictor_dirty = true;
+    }
 
     //Handle DIRTY state.
     //ANNOTATION
@@ -422,10 +518,14 @@ int main( int argc, char* argv[] )
       //TODO: need to get this from the current model.
 
       if(motifs.size() != the_parameters.energyThrFactors.size()){
-        cout << "ERROR trying to annotate, motifs and pearameters don't agree." << endl;
+        cerr << "ERROR trying to annotate, motifs and pearameters don't agree." << endl;
+        cerr << the_parameters.energyThrFactors << endl;
       }else{
+        cerr << "DOING ANNOTATION" << endl;
 
-        SeqAnnotator ann( motifs, the_parameters.energyThrFactors );
+        vector < double > tmp_energyThrFactors(6, 0.6);
+        //SeqAnnotator ann( motifs, the_parameters.energyThrFactors );
+        SeqAnnotator ann(motifs, tmp_energyThrFactors);
         for ( int i = 0; i < seqs.size(); i++ )
         {
             seqSites[i].clear();
@@ -436,25 +536,13 @@ int main( int argc, char* argv[] )
       }
     }
 
-    if(param_factory_dirty && NULL != the_model){
-      if( NULL != param_factory){
-        delete param_factory;
-        param_factory = NULL;
-      }
-      param_factory = new ParFactory(*the_model, seqs.size());
-      the_parameters = param_factory->create_expr_par(); //Currently, code further down expects par_init to be in PROB_SPACE.
-      the_parameters = param_factory->changeSpace(the_parameters, PROB_SPACE);
-
-      param_factory_dirty = false;
-    }
-
     if(predictor_dirty){
       if(NULL != predictor){
         delete predictor;
         predictor = NULL;
       }
 
-      if( NULL != the_model && !dataset_dirty && !param_factory_dirty && (user_annotations || !annotations_dirty)){
+      if( predictor_dirty && NULL != the_model && !dataset_dirty && !param_factory_dirty && (user_annotations || !annotations_dirty)){
         predictor = new ExprPredictor( seqs, seqSites, r_seqSites, seqLengths, r_seqLengths, *training_dataset, motifs, *the_model, indicator_bool, motifNames, axis_start, axis_end, axis_wts );
         predictor_dirty = false;
       }
