@@ -58,7 +58,17 @@ static string message_str_from_stream(istream &stream){
 Matrix message_to_labeled_matrix(const gemstat::GSLabeledMatrixMessage& in_labeled_matrix_msg, vector<string>& rownames, vector<string>& colnames);
 Motif message_to_motif(const gemstat::MotifMessage& in_motif_msg, vector< double > in_background);
 ExprModel* message_to_new_exprmodel(const gemstat::ExprModelMessage& in_model_msg, vector< Motif >& default_motifs);
-void delete_model(ExprModel *model_to_delete);
+
+void delete_model(ExprModel*& model_to_delete){
+  delete &(model_to_delete->coopMat);
+  delete &(model_to_delete->repressionMat);
+  delete &(model_to_delete->actIndicators);
+  delete &(model_to_delete->repressionMat);
+  delete model_to_delete;
+  model_to_delete = NULL;
+}
+
+
 
 void free_fix_from_par(const ExprPar& param_ff, vector<bool>& indicator_bool);
 
@@ -101,67 +111,21 @@ int main( int argc, char* argv[] )
 
     for ( int i = 1; i < argc; i++ )
     {
-        if ( !strcmp( "-s", argv[ i ] ) )
-            seqFile = argv[ ++i ];
-        else if ( !strcmp( "-rs", argv[ i ] ) )
-            r_seqFile = argv[ ++i ];
-        else if ( !strcmp( "-a", argv[ i ] ) )
-            annFile = argv[ ++i ];
-        else if ( !strcmp( "-e", argv[ i ] ) )
-            exprFile = argv[ ++i ];
-        else if ( !strcmp( "-m", argv[ i ] ) )
-            motifFile = argv[ ++i ];
-        else if ( !strcmp( "-f", argv[ i ] ) )
-            factorExprFile = argv[ ++i ];
-        else if ( !strcmp( "-o", argv[ i ] ) )
-            cmdline_modelOption = getModelOption( argv[++i] );
-        else if ( !strcmp( "-c", argv[ i ] ) )
-            coopFile = argv[ ++i ];
-        else if ( !strcmp( "-i", argv[ i ] ) )
-            factorInfoFile = argv[ ++i ];
-        else if ( !strcmp( "-r", argv[ i ] ) )
-            repressionFile = argv[ ++i ];
-        else if ( !strcmp( "-oo", argv[ i ] ) )
+
+        if ( !strcmp( "-oo", argv[ i ] ) )
             ExprPredictor::objOption = getObjOption( argv[++i] );
-        else if ( !strcmp( "-mc", argv[i] ) )
-            maxContact = atoi( argv[++i] );
-        else if ( !strcmp( "-fo", argv[i] ) )
-            outFile = argv[++i];
-        else if ( !strcmp( "-p", argv[i] ) )
-            parFile = argv[++i];
         else if ( !strcmp( "-wt", argv[ i ]) )
             axis_wtFile = argv[ ++ i ];
-        else if ( !strcmp( "-ct", argv[i] ) )
-            coopDistThr = atof( argv[++i] );
-        else if ( !strcmp( "-sigma", argv[i] ) )
-            factorIntSigma = atof( argv[++i] );
-        else if ( !strcmp( "-rt", argv[i] ) )
-            repressionDistThr = atof( argv[++i] );
         else if ( !strcmp( "-na", argv[i] ) )
             ExprPredictor::nAlternations = atoi( argv[++i] );
         else if ( !strcmp( "-ff", argv[i] ) )
             free_fix_indicator_filename = argv[++i];
-        else if ( !strcmp( "-oq", argv[i] ) )
-        {
-	    cmdline_one_qbtm_per_crm = true;
-
-            ExprPar::one_qbtm_per_crm = true;
-            ExprFunc::one_qbtm_per_crm = true;
-        }
-        else if ( !strcmp( "-et", argv[i] ) ){
-            eTF = atof( argv[ ++i ] );
-	    read_factor_thresh = true;
-	}
         else if ( !strcmp( "-df", argv[ i ]))
             dnase_file = argv[ ++i ];
         else if ( !strcmp( "-ft", argv[ i ]))
             factor_thr_file = argv[ ++i ];
 	else if ( !strcmp( "--seed", argv[ i ]))
 	    initialSeed = atol( argv[++i] );
-	else if ( !strcmp("-po", argv[ i ]))
-	    par_out_file = argv[ ++i ]; //output file for pars at the en
-  else if ( !strcmp("-onebeta", argv[ i ]))
-      cmdline_one_beta = true;
   else if ( !strcmp("-l1", argv[ i ]))
       l1 = atof(argv[ ++i ]);
   else if ( !strcmp("-l2", argv[ i ]))
@@ -172,13 +136,6 @@ int main( int argc, char* argv[] )
 	    upper_bound_file = argv[ ++i ];
         else if( !strcmp("-no_gt_out", argv[ i ]))
             cmdline_write_gt = false;
-    }
-
-    if ( seqFile.empty() || exprFile.empty() || motifFile.empty() || factorExprFile.empty() || outFile.empty() || ( ( cmdline_modelOption == QUENCHING || cmdline_modelOption == CHRMOD_UNLIMITED || cmdline_modelOption == CHRMOD_LIMITED ) &&  factorInfoFile.empty() ) || ( cmdline_modelOption == QUENCHING && repressionFile.empty() ) )
-    {
-        cerr << "Usage: " << argv[ 0 ] << " -s seqFile -e exprFile -m motifFile -f factorExprFile -fo outFile [-a annFile -o modelOption -c coopFile -i factorInfoFile -r repressionFile -oo objOption -mc maxContact -p parFile -rt repressionDistThr -na nAlternations -ct coopDistThr -sigma factorIntSigma --seed RNG_SEED]" << endl;
-        cerr << "modelOption: Logistic, Direct, Quenching, ChrMod_Unlimited, ChrMod_Limited" << endl;
-        exit( 1 );
     }
 
     //     bool readSites = false;     // whether read sites (if true) or read sequences
@@ -203,9 +160,8 @@ int main( int argc, char* argv[] )
     // read the sequences
     vector< Sequence > seqs;
     vector< string > seqNames;
-    int nSeqs = seqs.size();
-    vector< SiteVec > seqSites( nSeqs );
-    vector< int > seqLengths( nSeqs );
+    vector< SiteVec > seqSites( seqs.size() );
+    vector< int > seqLengths( seqs.size() );
 
     //read the random sequences
     vector< Sequence > r_seqs;
@@ -213,21 +169,22 @@ int main( int argc, char* argv[] )
     int r_nSeqs = r_seqs.size();
 
 
+
+
+    // read the motifs
+    vector< Motif > motifs;
+    vector< string > motifNames;
+    vector< double > background = createNtDistr( gcContent );
+
+    // read the factor expression data
+    Matrix factorExprData;
+
     // read the expression data
     vector< string > condNames;
     Matrix exprData;
     int nConds = exprData.nCols();
 
     vector < string > expr_condNames = condNames;
-
-    // read the motifs
-    vector< Motif > motifs;
-    vector< string > motifNames;
-    vector< double > background = createNtDistr( gcContent );
-    int nFactors = motifs.size();
-
-    // read the factor expression data
-    Matrix factorExprData;
 
     //TODO
     //Initialize the dataset that is actually provided
@@ -267,6 +224,7 @@ int main( int argc, char* argv[] )
             istream_iterator<string>(),
             back_inserter(tokens));
 
+    cout << "COMMAND " << tokens << endl;
 
     if(0 == tokens[0].compare("EXIT")){
       cout << "Goodbye." << endl;
@@ -289,16 +247,8 @@ int main( int argc, char* argv[] )
           motifNames.push_back(motifs[k].getName());
         }
 
-        if( NULL != param_factory){
-          delete param_factory;
-          param_factory = NULL;
-        }
-        param_factory = new ParFactory(*the_model, nSeqs);
-        the_parameters = param_factory->create_expr_par(); //Currently, code further down expects par_init to be in PROB_SPACE.
-        the_parameters = param_factory->changeSpace(the_parameters, PROB_SPACE);
 
-        param_factory_dirty = false;
-        annotations_dirty = true;
+        param_factory_dirty = true;
     }
     else if(0 == tokens[0].compare("TARGET_EXPRESSION")){
     //TODO read_expression
@@ -308,6 +258,11 @@ int main( int argc, char* argv[] )
 
       vector<string> target_rownames;
       vector<string> target_colnames;
+
+      if(NULL != training_dataset){
+        delete training_dataset;
+        training_dataset = NULL;
+      }
 
       exprData = message_to_labeled_matrix(read_a_labeled_matrix,target_rownames,target_colnames);
       dataset_dirty = true;
@@ -320,6 +275,11 @@ int main( int argc, char* argv[] )
 
       vector<string> factor_rownames;
       vector<string> factor_colnames;
+
+      if(NULL != training_dataset){
+        delete training_dataset;
+        training_dataset = NULL;
+      }
 
       factorExprData = message_to_labeled_matrix(read_a_labeled_matrix,factor_rownames,factor_colnames);
       dataset_dirty = true;
@@ -351,7 +311,8 @@ int main( int argc, char* argv[] )
       seqs.clear();
       seqNames.clear();
       seqLengths.clear();
-      nSeqs = 0;
+      seqSites.clear();
+      //nSeqs = 0;
       annotations_dirty = true;
     }
     else if(0 == tokens[0].compare("SEQUENCE")){
@@ -366,11 +327,13 @@ int main( int argc, char* argv[] )
       seqs.push_back(tmp_sequence);
       seqNames.push_back(tmp_seqname);
       seqLengths.push_back(tmp_sequence.size());
-      nSeqs += 1;
+      seqSites.push_back(SiteVec());
+      //nSeqs += 1;
       annotations_dirty=true;
     }
     else if(0 == tokens[0].compare("ANNOTATIONS")){
       //Take straight annotations
+      cout << "Sorry, this feature is not yet implemented." << endl; continue;
       user_annotations = true;
       annotations_dirty = false;
     }else if(0 == tokens[0].compare("WEIGHTS")){
@@ -388,7 +351,7 @@ int main( int argc, char* argv[] )
         cout << "Sequences:" << endl;
         for ( int i = 0; i < seqs.size(); i++ ) cout << seqNames[i] << endl << seqs[i] << endl;
         cout << "Site representation of sequences:" << endl;
-        for ( int i = 0; i < nSeqs; i++ ) {
+        for ( int i = 0; i < seqs.size(); i++ ) {
           cout << ">" << seqNames[i] << endl;
           for ( int j = 0; j < seqSites[i].size(); j++ ) cout << seqSites[i][j] << endl;
         }
@@ -420,41 +383,81 @@ int main( int argc, char* argv[] )
       }else if(0 == tokens[0].compare("PREDICT")){
         // create the expression predictor
 
-      if(dataset_dirty){
-        if(NULL != training_dataset){
-          delete training_dataset;
-          training_dataset = NULL;
+        if(NULL == predictor){
+          cout << "ERROR no predictor!" << endl;
+          continue;
         }
-        training_dataset = new DataSet(factorExprData,exprData);
-        dataset_dirty = false;
-        predictor_dirty = true;
+      //DO PREDICTION
+      //TODO:
+      //int predict( const SiteVec& targetSites, int targetSeqLength, vector< double >& targetExprs, int seq_num ) const;
+      vector< vector<double > > prediction_output;
+      predictor->predict_all(the_parameters,prediction_output);
+
+      //TODO: Actually output the prediction
+      for(int i = 0;i<seqs.size();i++){
+        cout << seqNames[i] << endl;
+        cout << prediction_output[i] << endl;
       }
 
-      if(predictor_dirty && NULL != the_model){
-        if(NULL != predictor){
-          delete predictor;
-          predictor = NULL;
+    }
+
+    if(dataset_dirty){
+      predictor_dirty = true;
+      if(NULL != training_dataset){
+        delete training_dataset;
+        training_dataset = NULL;
+      }
+
+      if(factorExprData.nCols() == exprData.nCols()){
+        training_dataset = new DataSet(factorExprData,exprData);
+        dataset_dirty = false;
+      }
+    }//END OF if tree , now handle things that were dirtied
+
+
+    //Handle DIRTY state.
+    //ANNOTATION
+    if((!user_annotations) && annotations_dirty && NULL != the_model ){
+      //Annotate the sequences we have/MO
+      //TODO: need to get this from the current model.
+
+      if(motifs.size() != the_parameters.energyThrFactors.size()){
+        cout << "ERROR trying to annotate, motifs and pearameters don't agree." << endl;
+      }else{
+
+        SeqAnnotator ann( motifs, the_parameters.energyThrFactors );
+        for ( int i = 0; i < seqs.size(); i++ )
+        {
+            seqSites[i].clear();
+            ann.annot( seqs[ i ], seqSites[ i ] );
         }
+        annotations_dirty = false;
+        predictor_dirty = true;
+      }
+    }
+
+    if(param_factory_dirty && NULL != the_model){
+      if( NULL != param_factory){
+        delete param_factory;
+        param_factory = NULL;
+      }
+      param_factory = new ParFactory(*the_model, seqs.size());
+      the_parameters = param_factory->create_expr_par(); //Currently, code further down expects par_init to be in PROB_SPACE.
+      the_parameters = param_factory->changeSpace(the_parameters, PROB_SPACE);
+
+      param_factory_dirty = false;
+    }
+
+    if(predictor_dirty){
+      if(NULL != predictor){
+        delete predictor;
+        predictor = NULL;
+      }
+
+      if( NULL != the_model && !dataset_dirty && !param_factory_dirty && (user_annotations || !annotations_dirty)){
         predictor = new ExprPredictor( seqs, seqSites, r_seqSites, seqLengths, r_seqLengths, *training_dataset, motifs, *the_model, indicator_bool, motifNames, axis_start, axis_end, axis_wts );
         predictor_dirty = false;
       }
-      //DO PREDICTION
-      //TODO:
-    }
-
-    //END OF if tree , now handle things that were dirtied
-    if((!user_annotations) && annotations_dirty && NULL != the_model){
-      //Annotate the sequences we have/MO
-      //TODO: need to get this from the current model.
-      seqSites.clear();
-      SeqAnnotator ann( motifs, the_parameters.energyThrFactors );
-      for ( int i = 0; i < seqs.size(); i++ )
-      {
-          seqSites.push_back(SiteVec());
-          ann.annot( seqs[ i ], seqSites[ i ] );
-      }
-      annotations_dirty = false;
-      predictor_dirty = true;
     }
     //Do these later
     /*
@@ -607,13 +610,6 @@ ExprModel* message_to_new_exprmodel(const gemstat::ExprModelMessage& in_model_ms
     return ret_ptr;
 }
 
-void delete_model(ExprModel *model_to_delete){
-  delete &(model_to_delete->coopMat);
-  delete &(model_to_delete->repressionMat);
-  delete &(model_to_delete->actIndicators);
-  delete &(model_to_delete->repressionMat);
-  delete model_to_delete;
-}
 
 /**
 

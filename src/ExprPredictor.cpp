@@ -336,6 +336,43 @@ double ExprPredictor::evalObjective( const ExprPar& par )
 
 }
 
+int ExprPredictor::predict_all(const ExprPar& par, vector< vector< double > > & predictions) const{
+
+		vector< int > seqLengths( seqs.size() );
+		for( int i = 0; i < seqs.size(); i++ ){
+			seqLengths[i] = seqs[i].size();
+		}
+
+		ExprFunc* func = createExprFunc( par );
+
+		vector< SiteVec > seqSites( seqs.size() ); //
+		#ifdef REANNOTATE_EACH_PREDICTION
+		SeqAnnotator ann( expr_model.motifs, par.energyThrFactors );
+		for ( int i = 0; i < seqs.size(); i++ ) {
+				ann.annot( seqs[ i ], seqSites[ i ] );
+		}
+		#else
+		seqSites = this->seqSites;
+		#endif
+
+		predictions.clear();
+		//Create predictions for every sequence and condition
+		for ( int i = 0; i < nSeqs(); i++ ) {
+
+				vector< double > predictedExprs(nConds());
+				for ( int j = 0; j < nConds(); j++ ) {
+						double predicted = -1;
+							Condition concs = training_data.getCondition( j );
+							predicted = func->predictExpr( seqSites[ i ], seqLengths[i], concs, i );
+						// predicted expression for the i-th sequence at the j-th condition
+						predictedExprs[i] = predicted;
+				}
+				predictions.push_back(predictedExprs);
+		}
+
+		return 0;
+}
+
 int ExprPredictor::simplex_minimize( ExprPar& par_result, double& obj_result )
 {
     // 	cout << "Start minimization" << endl;

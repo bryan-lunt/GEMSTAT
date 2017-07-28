@@ -98,6 +98,8 @@ ENHANCER_NAMES=["en1","en2"]
 MOTIF_NAMES=["zld","baz"]
 EN_LENGTH=500
 
+N_PREDICTIONS = 100
+
 some_enhancers = [make_random_sequence(one_name,EN_LENGTH) for one_name in ENHANCER_NAMES]
 some_motifs = [make_a_motif(n,1.0,scipy.absolute(10.0*scipy.randn(8,4))) for n in MOTIF_NAMES]
 
@@ -115,7 +117,8 @@ def send_message(stream,name,msg=None):
 		stream.write("{}\n".format(1+len(serialized_str)))
 		stream.write("{}\n".format(serialized_str))
 
-with open("./test_serialized.out","w") as outfile:
+#with open("./test_serialized.out","w") as outfile:
+with sys.stdout as outfile:
 
 	send_message(outfile,"TARGET_EXPRESSION",labeled_exp_data)
 
@@ -133,4 +136,5 @@ with open("./test_serialized.out","w") as outfile:
 	send_message(outfile,"MODEL",test_model)
 
 	send_message(outfile,"CHECKPOINT")
-	send_message(outfile,"PREDICT")
+	for i in range(N_PREDICTIONS):
+		send_message(outfile,"PREDICT")
