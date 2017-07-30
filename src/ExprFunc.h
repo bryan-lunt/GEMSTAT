@@ -103,7 +103,7 @@ class Rates_ExprFunc : public Markov_ExprFunc {
       //Use inherited predictExpr
       //double predictExpr( const SiteVec& _sites, int length, const vector< double >& factorConcs, int seq_num );
   protected:
-      virtual double expr_from_config(const SiteVec& _sites, int length, int seq_num, const vector< double >& marginals);
+      virtual double expr_from_config( const vector< double >& marginals);
 };
 
 class Direct_ExprFunc : public ExprFunc {

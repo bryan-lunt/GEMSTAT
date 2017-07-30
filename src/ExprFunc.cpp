@@ -312,24 +312,22 @@ double Markov_ExprFunc::expr_from_config(const vector< double >& marginals){
 
 }
 
-double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int seq_num, const vector< double >& marginals){
+double Rates_ExprFunc::expr_from_config(const vector< double >& marginals){
 
-  GEMSTAT_PROMOTER_DATA_T my_promoter = par.getPromoterData( seq_num );
+  int n = n_sites;
+
+  GEMSTAT_PROMOTER_DATA_T my_promoter = par.getPromoterData( seq_number );
+  assert(n_sites + 2 == marginals.size());
 
   double k_1_numerator = my_promoter.pi*my_promoter.basal_trans;
   double k_1_denominator = 1.0;
   double k_2_numerator = 1.0 * my_promoter.basal_trans;
   double k_2_denominator = 1.0;
 
+  for(int i = 1; i <= n_sites; i++){
 
-
-  assert(_sites.size() == marginals.size());
-
-  int n = _sites.size();
-  for(int i = 0; i < n; i++){
-
-    if( actIndicators[ _sites[ i ].factorIdx ] )
-    {   double effect_1 = par.txpEffects[ _sites[ i ].factorIdx ];
+    if( actIndicators[ sites[ i ].factorIdx ] )
+    {   double effect_1 = par.txpEffects[ sites[ i ].factorIdx ];
         if(effect_1 >= 1.0){
           k_1_numerator += marginals[i]*(effect_1-1.0);
         }else{
@@ -338,9 +336,9 @@ double Rates_ExprFunc::expr_from_config(const SiteVec& _sites, int length, int s
           k_1_denominator *= (1.0 + marginals[i]*(effect_1 -1.0));
         }
     }
-    if( repIndicators[ _sites[ i ].factorIdx ] )
+    if( repIndicators[ sites[ i ].factorIdx ] )
     {
-        double effect_2 = par.repEffects[ _sites[ i ].factorIdx ];
+        double effect_2 = par.repEffects[ sites[ i ].factorIdx ];
         if(effect_2 >= 1.0){
           k_2_numerator += marginals[i]*(effect_2-1.0);
         }else{
