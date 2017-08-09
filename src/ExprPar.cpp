@@ -147,6 +147,7 @@ ExprPar ParFactory::createDefaultMinMax(bool min_or_max) const
   tmp_par.pis.assign(tmp_par.pis.size(), min_or_max ? log(ExprPar::max_pi) : log(ExprPar::min_pi));
   tmp_par.betas.assign(tmp_par.betas.size(), min_or_max ? log(ExprPar::max_beta) : log(ExprPar::min_beta));
   tmp_par.energyThrFactors.assign(tmp_par.energyThrFactors.size(), min_or_max ? log(ExprPar::max_energyThrFactors) : log(ExprPar::min_energyThrFactors));
+  tmp_par.extra_params.assign(1,min_or_max ? log(1.0) : log(0.01) );
   tmp_par.my_space = ENERGY_SPACE;
   return tmp_par;
 }
@@ -177,6 +178,10 @@ ExprPar ParFactory::create_expr_par() const
   tmp_par.betas.assign( expr_model.shared_scaling ? 1 : nSeqs, log( ExprPar::default_beta ) );
 
   tmp_par.energyThrFactors.assign( _nFactors, log( ExprPar::default_energyThrFactors ) );
+
+  tmp_par.extra_params.assign(1,log(0.5));
+
+
   tmp_par.my_space = ENERGY_SPACE;
   tmp_par.my_factory = this;
   return tmp_par;
@@ -298,6 +303,10 @@ ExprPar ParFactory::create_expr_par(const vector<double>& pars, const Thermodyna
           double energyThrFactor_val = pars[ counter++ ];
           tmp_par.energyThrFactors[i] = energyThrFactor_val ;
       }
+
+      tmp_par.extra_params.clear();
+      tmp_par.extra_params.push_back( pars[ counter++ ] );
+
       assert(counter == pars.size());
 
       tmp_par.my_space = in_space;
@@ -618,12 +627,19 @@ ExprPar ParFactory::load_1_6a(istream& fin){
   }
 
   //TODO: load annotation thresholds
-  double factor_thr_val;
   tmp_par.energyThrFactors.clear();
   std::getline(fin,line);
   LOCAL_TOKENIZE(tokens,line,line_ss);
   for(int i = 0; i < tokens.size();i++){
       tmp_par.energyThrFactors.push_back( atof(tokens[i].c_str()) );
+  }
+
+  std::getline(fin,line);
+  LOCAL_TOKENIZE(tokens,line,line_ss);
+  assert(tokens.size() >= 2);
+  assert(0 == tokens[0].compare("EX"));
+  for(tf_i=0;tf_i<tokens.size();tf_i++){
+    tmp_par.extra_params[0] = atof(tokens[tf_i].c_str());
   }
     //TODO: write output for this format.
 
@@ -738,6 +754,8 @@ ExprPar::ExprPar( int _nFactors, int _nSeqs ) : factorIntMat()
     betas.assign( nSeqs, ExprPar::default_beta );
 
     energyThrFactors.assign( _nFactors, ExprPar::default_energyThrFactors );
+
+    extra_params.assign(1,0.5);
 
     my_space = modelOption == LOGISTIC ? ENERGY_SPACE : PROB_SPACE;
 }
@@ -977,6 +995,8 @@ void ExprPar::getRawPars( vector< double >& pars) const
     {
         pars.push_back( energyThrFactors[ i ] );
     }
+
+    pars.push_back( extra_params[0] );
 }
 
 GEMSTAT_PAR_FLOAT_T ExprPar::getBetaForSeq(int enhancer_ID) const {
@@ -1050,6 +1070,12 @@ void ExprPar::print( ostream& os, const vector< string >& motifNames, const IntM
     for( int i = 0; i < energyThrFactors.size(); i++ )
     {
         os << energyThrFactors[ i ] << "\t";
+    }
+    os << endl;
+
+    os << "EX";
+    for( int i = 0; i < extra_params.size(); i++ ){
+        os << "\t" << extra_params;
     }
     os << endl;
 

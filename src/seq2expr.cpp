@@ -248,9 +248,10 @@ int main( int argc, char* argv[] )
     // read the roles of factors
     vector< bool > actIndicators( nFactors, true );
     vector< bool > repIndicators( nFactors, false );
+    vector< bool > pioneer_indicators( nFactors, false );
     if ( !factorInfoFile.empty() )
     {
-	int readRet = readFactorRoleFile(factorInfoFile, factorIdxMap, actIndicators, repIndicators);
+	int readRet = readFactorRoleFile(factorInfoFile, factorIdxMap, actIndicators, repIndicators, pioneer_indicators);
         ASSERT_MESSAGE(0 == readRet, "Could not parse the factor information file.");
     }
 
@@ -279,7 +280,7 @@ int main( int argc, char* argv[] )
         //TODO: Kind of a hacky workaround, the models/DP implementations should know that they need to ignore this during their setup.
         repressionDistThr = 0;
     }
-    ExprModel expr_model( cmdline_modelOption, cmdline_one_qbtm_per_crm, motifs, intFunc, maxContact, coopMat, actIndicators, repIndicators, repressionMat, repressionDistThr);
+    PioneerExprModel expr_model( cmdline_modelOption, cmdline_one_qbtm_per_crm, motifs, intFunc, maxContact, coopMat, actIndicators, repIndicators, pioneer_indicators, repressionMat, repressionDistThr);
     expr_model.shared_scaling = cmdline_one_beta;
 
     // read the axis wt file
@@ -326,32 +327,36 @@ int main( int argc, char* argv[] )
     par_init.getRawPars(tmp_vector);
     int num_indicators = tmp_vector.size();
     vector <bool> indicator_bool(num_indicators, true);
-    #ifndef REANNOTATE_EACH_PREDICTION
-    //prevent optimization of annotation thresholds if that will be useless.
-    for(int i = 0;i<motifs.size();i++){indicator_bool[indicator_bool.size()-(1+i)] = false;}
-    #endif
+    ExprPar param_ff;
+
+
     if( !free_fix_indicator_filename.empty() )
     {
-        ExprPar param_ff;
+
         try{
           param_ff = param_factory->load( free_fix_indicator_filename );
         }catch (int& e){
           cerr << "Could not parse/read the free_fix file " << free_fix_indicator_filename << endl;
           exit(1);
         }
-        #ifndef REANNOTATE_EACH_PREDICTION
-        //prevent optimization of annotation thresholds if that will be useless.
-        param_ff.energyThrFactors.assign(param_ff.energyThrFactors.size(),0.0);
-        #endif
-        vector < double > tmp_ff;
-        param_ff.getRawPars(tmp_ff);
-        indicator_bool.clear();
-        for(vector<double>::iterator iter = tmp_ff.begin();iter != tmp_ff.end();++iter){
-          double one_val = *iter;
-          if( -0.00000001 < one_val && 0.0000001 > one_val){ indicator_bool.push_back(false); }
-          else if (0.9999999 < one_val && 1.0000001 > one_val){ indicator_bool.push_back(true);}
-          else{ ASSERT_MESSAGE(false,"Illegal value in indicator_bool file");}
-        }
+    }else{
+        vector< double > all_on(num_indicators,1.0);
+        param_ff = param_factory->create_expr_par(all_on, ENERGY_SPACE);
+    }
+
+    #ifndef REANNOTATE_EACH_PREDICTION
+    //prevent optimization of annotation thresholds if that will be useless.
+    param_ff.energyThrFactors.assign(param_ff.energyThrFactors.size(),0.0);
+    #endif
+    vector < double > tmp_ff;
+    param_ff.getRawPars(tmp_ff);
+    indicator_bool.clear();
+    for(vector<double>::iterator iter = tmp_ff.begin();iter != tmp_ff.end();++iter)
+    {
+      double one_val = *iter;
+      if( -0.00000001 < one_val && 0.0000001 > one_val){ indicator_bool.push_back(false); }
+      else if (0.9999999 < one_val && 1.0000001 > one_val){ indicator_bool.push_back(true);}
+      else{ ASSERT_MESSAGE(false,"Illegal value in indicator_bool file");}
     }
 
 

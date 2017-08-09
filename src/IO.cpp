@@ -77,6 +77,39 @@ int readFactorRoleFile(const string& filename, const map<string, int>& factorIdx
 	return 0;
 }
 
+int readFactorRoleFile(const string& filename, const map<string, int>& factorIdxMap,  vector< bool>& actIndicators, vector<bool>& repIndicators, vector<bool>& pioneer_indicators){
+
+	ifstream finfo( filename.c_str());
+	if(!finfo.is_open()){
+		cerr << "Cannot open the factor information file " << filename << endl;
+		return RET_ERROR;
+	}
+
+	string name;
+	int i = 0, actRole, repRole, pioneer;
+	while( finfo >> name >> actRole >> repRole >> pioneer)
+	{
+		if( factorIdxMap.at(name) != i){
+			cerr << "An entry in the factor information file was out of order or otherwise invalid: " << filename << ":" << i+1 << endl;
+			return RET_ERROR;
+		}
+
+		if( (actRole != 0 && actRole != 1) || (repRole != 0 && repRole !=1) || (pioneer != 0 && pioneer !=1) ){
+			cerr << "An invalid role setting was provided in the factor information file: " << filename << ":" << i+1 << endl;
+			return RET_ERROR;
+		}
+
+		actIndicators[i] = (1 == actRole);//This does not rely on outside initialization of the actIndicators or repIndicators, other than instantiation.
+		repIndicators[i] = (1 == repRole);
+		pioneer_indicators[i] = (1 == pioneer);
+		i++;
+	}
+
+	finfo.close();
+
+	return 0;
+}
+
 int readAxisWeights(const string& filename, vector< int >& axis_start, vector< int >& axis_end, vector< double >& axis_wts){
 	//Seems to load a file of ranges and weights. All weights should total 100.
 	//Ranges start at 0

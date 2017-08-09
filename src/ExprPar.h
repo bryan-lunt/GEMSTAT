@@ -43,7 +43,7 @@ class ExprPar
         ExprPar( const vector< double >& _maxBindingWts, const Matrix& _factorIntMat, const vector< double >& _txpEffects, const vector< double >& _repEffects, const vector < double >&  _basalTxps, const vector <double>& _pis, const vector <double>& _betas, int _nSeqs, const vector< double >& _energyThrFactors );
                                                   // construct from a "flat" vector of free parameters (assuming they are in the correct/uniform scale)
         ExprPar( const vector< double >& pars, const IntMatrix& coopMat, const vector< bool >& actIndicators, const vector< bool >& repIndicators, int _nSeqs );
-        void copy( const ExprPar& other ) { maxBindingWts = other.maxBindingWts; factorIntMat = other.factorIntMat; txpEffects = other.txpEffects; repEffects = other.repEffects; basalTxps = other.basalTxps; pis = other.pis, betas = other.betas, energyThrFactors = other.energyThrFactors, nSeqs = basalTxps.size(); my_space = other.my_space; my_factory = other.my_factory; }
+        void copy( const ExprPar& other ) { maxBindingWts = other.maxBindingWts; factorIntMat = other.factorIntMat; txpEffects = other.txpEffects; repEffects = other.repEffects; basalTxps = other.basalTxps; pis = other.pis, betas = other.betas, energyThrFactors = other.energyThrFactors, nSeqs = basalTxps.size(); my_space = other.my_space; my_factory = other.my_factory; extra_params = other.extra_params;}
         ExprPar( const ExprPar& other ) { copy( other ); }
 
         // assignment
@@ -80,6 +80,7 @@ class ExprPar
 
         vector < GEMSTAT_PAR_FLOAT_T > betas;
         vector < GEMSTAT_PAR_FLOAT_T > energyThrFactors;
+        vector < GEMSTAT_PAR_FLOAT_T > extra_params;
         int nSeqs;
 
         static ModelType modelOption;             // model option

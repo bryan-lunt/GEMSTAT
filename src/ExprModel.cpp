@@ -4,9 +4,12 @@
 
 ExprModel::ExprModel( ModelType _modelOption, bool _one_qbtm_per_crm, vector< Motif>& _motifs, FactorIntFunc* _intFunc, int _maxContact, IntMatrix& _coopMat, vector< bool >& _actIndicators, vector< bool>& _repIndicators, IntMatrix& _repressionMat, double _repressionDistThr ) : modelOption( _modelOption), one_qbtm_per_crm( _one_qbtm_per_crm), motifs( _motifs), intFunc( _intFunc), maxContact( _maxContact), coopMat( _coopMat ), actIndicators( _actIndicators), repIndicators( _repIndicators), repressionMat( _repressionMat), repressionDistThr( _repressionDistThr)
 {
-  shared_scaling = false;
+    shared_scaling = false;
 }
 
+PioneerExprModel::PioneerExprModel( ModelType _modelOption, bool _one_qbtm_per_crm, vector< Motif>& _motifs, FactorIntFunc* _intFunc, int _maxContact, IntMatrix& _coopMat, vector< bool >& _actIndicators, vector< bool>& _repIndicators, vector< bool>& _pioneer_indicators, IntMatrix& _repressionMat, double _repressionDistThr ) : ExprModel( _modelOption, _one_qbtm_per_crm, _motifs, _intFunc, _maxContact, _coopMat, _actIndicators, _repIndicators, _repressionMat, _repressionDistThr ), pioneer_indicators( _pioneer_indicators)
+{
+}
 
 ModelType getModelOption( const string& modelOptionStr )
 {

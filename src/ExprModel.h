@@ -58,6 +58,11 @@ public: //TODO: Implement good accessors / mutators instead.
   ExprFunc* createNewExprFunc( const ExprPar& par, const SiteVec& sites_, const int seq_length, const int seq_num ) const;
 };
 
+class PioneerExprModel : public ExprModel {
 
+public: //TODO: Implement good accessors / mutators instead.
+	PioneerExprModel( ModelType _modelOption, bool _one_qbtm_per_crm, vector< Motif>& _motifs, FactorIntFunc* _intFunc, int _maxContact, IntMatrix& _coopMat, vector< bool >& _actIndicators, vector< bool>& _repIndicators, vector< bool >& _pioneer_indicators, IntMatrix& _repressionMat, double _repressionDistThr );
+    vector< bool >& pioneer_indicators;
+};
 
 #endif

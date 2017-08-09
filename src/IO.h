@@ -13,6 +13,7 @@ int readEdgelistGraph( const string& filename, const map<string, int>& factorIdx
 int readFactorThresholdFile( const string& filename, vector< double >& destination, int nFactors);
 
 int readFactorRoleFile(const string& filename, const map<string, int>& factorIdxMap,  vector< bool>& actIndicators, vector<bool>& repIndicators);
+int readFactorRoleFile(const string& filename, const map<string, int>& factorIdxMap,  vector< bool>& actIndicators, vector<bool>& repIndicators, vector<bool>& pioneer_indicators);
 
 //TODO: Shouldn't this function check that it is reading the correct number of sites?
 int readAxisWeights(const string& filename, vector< int >& axis_start, vector< int >& axis_end, vector< double >& axis_wts);

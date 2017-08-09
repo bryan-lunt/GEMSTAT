@@ -272,6 +272,8 @@ void ExprPredictor::printPar( const ExprPar& par ) const
     //assert( par.betas.size() == nSeqs() );
 
     cout << "THRESH : " << par.energyThrFactors << endl;
+
+	cout << "EXTRA : " << par.extra_params << endl;
     cout << flush;
 }
 
