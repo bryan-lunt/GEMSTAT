@@ -27,6 +27,8 @@
 #include "ExprModel.h"
 #include "ExprPredictor.h"
 
+#include "Pioneers.h"
+
 #include "ObjFunc.h"
 
 int main( int argc, char* argv[] )
