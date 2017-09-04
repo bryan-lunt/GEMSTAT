@@ -357,7 +357,7 @@ double Rates_ExprFunc::expr_from_config(const vector< double >& marginals){
   return (k_1*k_2)/(k_1 + k_2 + k_1*k_2); //Added a third arc for transcription with a rate of 1.0, should prevent its going infinitely fast.
 }
 
-ModelType ExprFunc::modelOption = QUENCHING;
+//ModelType ExprFunc::modelOption = QUENCHING;
 
 double ExprFunc::compPartFuncOff() const
 {
@@ -466,12 +466,15 @@ double ChrMod_ExprFunc::compPartFuncOff() const
 
 double ExprFunc::compPartFuncOn() const
 {
+    /*
     if ( modelOption == DIRECT ) assert(false);//should never make it here.
     if ( modelOption == QUENCHING ) assert(false);
     if ( modelOption == CHRMOD_UNLIMITED) assert(false);//return compPartFuncOnChrMod_Unlimited();
     if ( modelOption == CHRMOD_LIMITED ) assert(false);//return compPartFuncOnChrMod_Limited();
+    */
 //TODO: A compiler warning is generated here. Shouldn't there be some defensive coding?
     assert(false);
+    return 0.0;
 }
 
 
