@@ -101,7 +101,7 @@ class Markov_ExprFunc : public ExprFunc {
 
 class Rates_ExprFunc : public Markov_ExprFunc {
   public:
-      Rates_ExprFunc( const SiteVec& sites_, const int seq_length, const int seq_num, const vector< Motif >& _motifs, const FactorIntFunc* _intFunc, const vector< bool >& _actIndicators, int _maxContact, const vector< bool >& _repIndicators, const IntMatrix& _repressionMat, double _repressionDistThr, const ExprPar& _par ) : Markov_ExprFunc( sites_, seq_length, seq_num, _motifs,  _intFunc, _actIndicators, _maxContact, _repIndicators, _repressionMat, _repressionDistThr, _par){} ;
+      Rates_ExprFunc( const ExprModel* _model, const ExprPar& _par , const SiteVec& sites_, const int seq_len, const int seq_num) : Markov_ExprFunc( _model, _par , sites_, seq_len, seq_num){} ;
       //Use inherited predictExpr
       //double predictExpr( const SiteVec& _sites, int length, const vector< double >& factorConcs, int seq_num );
   protected:
