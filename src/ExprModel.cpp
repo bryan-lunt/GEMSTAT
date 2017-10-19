@@ -74,21 +74,13 @@ ExprFunc* ExprModel::createNewExprFunc( const ExprPar& par, const SiteVec& sites
         parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
         return_exprfunc = new ChrModUnlimited_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
         break;
-    case RATES:
-        parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
-          return_exprfunc = new Rates_ExprFunc(sites_,seq_length,seq_num,
-                          this->motifs,
-                          this->intFunc,
-                          this->actIndicators,
-                          this->maxContact,
-                          this->repIndicators,
-                          this->repressionMat,
-                          this->repressionDistThr,
-                          parToPass );
-        break;
     case MARKOV:
         parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
         return_exprfunc = new Markov_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
+        break;
+    case RATES:
+        parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
+        return_exprfunc = new Rates_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
         break;
     default :
         cerr << "Somehow, an invalid model argument was passed. " << endl;
