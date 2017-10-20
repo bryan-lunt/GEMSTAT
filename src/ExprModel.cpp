@@ -93,6 +93,7 @@ ExprFunc* ExprModel::createNewExprFunc( const ExprPar& par, const SiteVec& sites
 
 CoopInfo::CoopInfo(int n_motifs) : coop_matrix( n_motifs, n_motifs, false)
 {
+    num_coops = 0;
     int_funcs.clear();
     int_funcs.push_back(new Null_FactorIntFunc()); //Interaction between sites not otherwise listed.
     int_funcs.push_back(new FactorIntFuncBinary( 20 ));
@@ -159,9 +160,21 @@ void CoopInfo::read_coop_file(string filename, map<string, int> factorIdxMap){
 
                         int_funcs.push_back(new Dimer_FactorIntFunc(dist_thr, first_orientation, second_orientation));
                         forward_func = int_funcs.size()-1;
-                        int_funcs.push_back(new Dimer_FactorIntFunc(dist_thr, !second_orientation,!first_orientation));
-                        backward_func = int_funcs.size()-1;
 
+                        if(tf_i == tf_j){
+                            //HOMODIMER
+                            backward_func = forward_func;
+                            if(first_orientation == second_orientation){
+                                //TODO: Better error handling
+                                cerr << "NOTE: You have asked for a homodimer with both units facing the same direction." << endl;
+                                cerr << "\tCurrently, the dynamic programming will end up treating that as an unending chain." << endl;
+                                //assert(false);
+                            }
+                        }else{
+                            //NON-Homodimers need an additional function.
+                            int_funcs.push_back(new Dimer_FactorIntFunc(dist_thr, !second_orientation,!first_orientation));
+                            backward_func = int_funcs.size()-1;
+                        }
 
 
                         interaction_setup_done = true;
@@ -175,6 +188,7 @@ void CoopInfo::read_coop_file(string filename, map<string, int> factorIdxMap){
                 coop_matrix.setElement(tf_j,tf_i,backward_func);
 
                 //cerr << "DEBUG read" << tokens[0] << tf_i << " " << tokens[1] << tf_i << endl;
+                num_coops++;
         }
 
         //cerr << coop_matrix << endl;

@@ -384,7 +384,7 @@ double ExprFunc::compPartFuncOff() const
         for ( int j = boundaries[i] + 1; j < i; j++ )
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
-            //cout << "compFactorInt: " << compFactorInt( sites[ i ], sites[ j ] ) << "\t";
+            //cout << "compFactorInt: " << compFactorInt( sites[ j ], sites[ i ] ) << "\t";
             //cout << "Z[j]: " << Z[ j ] << endl;
             double old_sum = sum;
             sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
@@ -392,7 +392,7 @@ double ExprFunc::compPartFuncOff() const
             {
                 cout << "Old sum:\t" << old_sum << endl;
                 cout << "Factors:\t" << sites[ i ].factorIdx << "\t" << sites[ j ].factorIdx << endl;
-                cout << "compFactorInt:\t" << compFactorInt( sites[ i ], sites[ j ] ) << endl;
+                cout << "compFactorInt:\t" << compFactorInt( sites[ j ], sites[ i ] ) << endl;
                 cout << "Z[j]:\t" << Z[ j ] << endl;
                 cout << i << "\t" << j << "\t" << par.factorIntMat( (sites[i]).factorIdx, (sites[j]).factorIdx ) << endl;
                 cout << "DEBUG: sum nan/inf\t"<< sum << endl;
@@ -442,13 +442,13 @@ double ChrMod_ExprFunc::compPartFuncOff() const
             double dist = sites[i].start - sites[j].start;
 
             // sum for Z0
-            sum0 += compFactorInt( sites[i], sites[j] ) * Z0[j];
+            sum0 += compFactorInt( sites[j], sites[i] ) * Z0[j];
             if ( dist > repressionDistThr ) sum0 += Z1[j];
 
             // sum for Z1
             if ( repIndicators[ sites[i].factorIdx ] )
             {
-                sum1 += compFactorInt( sites[i], sites[j] ) * Z1[j];
+                sum1 += compFactorInt( sites[j], sites[i] ) * Z1[j];
                 if ( dist > repressionDistThr ) sum1 += Z0[j];
             }
         }
@@ -494,7 +494,7 @@ double Direct_ExprFunc::compPartFuncOn() const
         for ( int j = boundaries[i] + 1; j < i; j++ )
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
-            sum += compFactorInt( sites[ i ], sites[ j ] ) * Z[ j ];
+            sum += compFactorInt( sites[ j ], sites[ i ] ) * Z[ j ];
         }
         //Z[i] = bindingWts[ i ] * par.txpEffects[ sites[i].factorIdx ] * sum;
         if( actIndicators[ sites[ i ].factorIdx ] )
@@ -534,7 +534,7 @@ double Quenching_ExprFunc::compPartFuncOn() const
         {
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
             bool R = testRepression( sites[j], sites[i] );
-            double term = compFactorInt( sites[ i ], sites[ j ] ) * ( Z1.getElement(j,0) + Z0.getElement(j,0) );
+            double term = compFactorInt( sites[ j ], sites[ i ] ) * ( Z1.getElement(j,0) + Z0.getElement(j,0) );
             sum1 += ( 1 - R )* term;
             sum0 += R * term;
         }
@@ -559,7 +559,7 @@ double Quenching_ExprFunc::compPartFuncOn() const
                 if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
                 bool R = testRepression( sites[j], sites[i] );
                 double effect = actIndicators[sites[j].factorIdx] * ( 1 - testRepression( sites[i], sites[j] ) ) * Z1.getElement(j,k-1) * par.txpEffects[sites[j].factorIdx];
-                double term = compFactorInt( sites[ i ], sites[ j ] ) * ( Z1.getElement(j,k) + Z0.getElement(j,k) + effect );
+                double term = compFactorInt( sites[ j ], sites[ i ] ) * ( Z1.getElement(j,k) + Z0.getElement(j,k) + effect );
                 sum1 += ( 1 - R )* term;
                 sum0 += R * term;
             }
@@ -617,13 +617,13 @@ double ChrModUnlimited_ExprFunc::compPartFuncOn() const
             if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
 
             // sum for Z0
-            sum0 += compFactorInt( sites[i], sites[j] ) * Z0[j];
+            sum0 += compFactorInt( sites[j], sites[i] ) * Z0[j];
             if ( dist > repressionDistThr ) sum0 += Z1[j];
 
             // sum for Z1
             if ( repIndicators[ sites[i].factorIdx ] )
             {
-                sum1 += compFactorInt( sites[i], sites[j] ) * Z1[j];
+                sum1 += compFactorInt( sites[j], sites[i] ) * Z1[j];
                 if ( dist > repressionDistThr ) sum1 += Z0[j];
             }
         }
@@ -673,8 +673,8 @@ double ChrModLimited_ExprFunc::compPartFuncOn() const
                 if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ) continue;
 
                 // sum for Z0
-                sum0 += compFactorInt( sites[i], sites[j] ) * Z0.getElement(j,k);
-                sum0A += k > 0 ? compFactorInt( sites[i], sites[j] ) * Z0.getElement(j,k-1) : 0;
+                sum0 += compFactorInt( sites[j], sites[i] ) * Z0.getElement(j,k);
+                sum0A += k > 0 ? compFactorInt( sites[j], sites[i] ) * Z0.getElement(j,k-1) : 0;
                 if ( dist > repressionDistThr )
                 {
                     sum0 += Z1.getElement(j,k);
@@ -684,7 +684,7 @@ double ChrModLimited_ExprFunc::compPartFuncOn() const
                 // sum for Z1
                 if ( repIndicators[ sites[i].factorIdx ] )
                 {
-                    sum1 += compFactorInt( sites[i], sites[j] ) * Z1.getElement(j,k);
+                    sum1 += compFactorInt( sites[j], sites[i] ) * Z1.getElement(j,k);
                     if ( dist > repressionDistThr ) sum1 += Z0.getElement(j,k);
                 }
             }
