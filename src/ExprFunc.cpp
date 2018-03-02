@@ -367,7 +367,7 @@ double Rates_ExprFunc::expr_from_config(const vector< double >& marginals){
   for(int i = 1; i <= n_sites; i++){
 
     if( actIndicators[ sites[ i ].factorIdx ] )
-    {   double effect_1 = par.txpEffects[ sites[ i ].factorIdx ];
+    {   double effect_1 = txpEffects[ sites[ i ].factorIdx ];
         if(effect_1 >= 1.0){
           k_1_numerator += marginals[i]*(effect_1-1.0);
         }else{
@@ -378,7 +378,7 @@ double Rates_ExprFunc::expr_from_config(const vector< double >& marginals){
     }
     if( repIndicators[ sites[ i ].factorIdx ] )
     {
-        double effect_2 = par.repEffects[ sites[ i ].factorIdx ];
+        double effect_2 = repEffects[ sites[ i ].factorIdx ];
         if(effect_2 >= 1.0){
           k_2_numerator += marginals[i]*(effect_2-1.0);
         }else{
