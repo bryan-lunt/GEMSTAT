@@ -12,7 +12,8 @@ double nlopt_obj_func( const vector<double> &x, vector<double> &grad, void* f_da
 ExprPredictor::ExprPredictor( const vector <Sequence>& _seqs, const vector< SiteVec >& _seqSites, const vector< int >& _seqLengths, const DataSet& _training_data, const vector< Motif >& _motifs, const ExprModel& _expr_model,
 		const vector < bool >& _indicator_bool, const vector <string>& _motifNames) : seqs(_seqs), seqSites( _seqSites ), seqLengths( _seqLengths ), training_data( _training_data ),
 	expr_model( _expr_model),
-	indicator_bool ( _indicator_bool ), motifNames ( _motifNames )
+	indicator_bool ( _indicator_bool ), motifNames ( _motifNames ),
+	search_option(UNCONSTRAINED)
 {
     //TODO: Move appropriate lines from this block to the ExprModel class.
 	cerr << "exprData size: " << training_data.exprData.nRows() << "  " << nSeqs() << endl;
@@ -39,7 +40,7 @@ ExprPredictor::ExprPredictor( const vector <Sequence>& _seqs, const vector< Site
     //gene_crm_fout.open( "gene_crm_fout.txt" );
 
     // set the model option for ExprPar and ExprFunc
-    ExprPar::modelOption = expr_model.modelOption;//TODO: Remove both of these.
+    //ExprPar::modelOption = expr_model.modelOption;//TODO: Remove both of these.
     //ExprFunc::modelOption = expr_model.modelOption;
 
     // set the values of the parameter range according to the model option
@@ -124,7 +125,7 @@ int ExprPredictor::train( const ExprPar& par_init )
     cout << "Objective function value: " << objFunc( par_model ) << endl;
     cout << "*******************************************" << endl << endl;
 
-    if ( n_alternations > 0 && ExprPar::searchOption == CONSTRAINED ){
+    if ( n_alternations > 0 && this->search_option == CONSTRAINED ){
       par_model = param_factory->truncateToBounds(par_model, indicator_bool);
 
     }
@@ -140,7 +141,7 @@ int ExprPredictor::train( const ExprPar& par_init )
     if ( n_alternations == 0 ) return 0;
 
     // alternate between two different methods
-    ExprPar par_result;
+    ExprPar par_result = param_factory->create_expr_par();
     double obj_result;
     for ( int i = 0; i < n_alternations; i++ )
     {
@@ -229,6 +230,7 @@ int ExprPredictor::predict( const SiteVec& targetSites_, int targetSeqLength, ve
 int ExprPredictor::predict( const ExprPar& par, const SiteVec& targetSites_, int targetSeqLength, vector< double >& targetExprs, int seq_num ) const
 {
 	// predict the expression
+
     ExprFunc* func = createExprFunc( par , targetSites_, targetSeqLength, seq_num);
 	targetExprs.resize(nConds());
     for ( int j = 0; j < nConds(); j++ )
@@ -289,37 +291,7 @@ void ExprPredictor::printPar( const ExprPar& par ) const
     cout.setf( ios::fixed );
     cout.precision( 8 );
     //     cout.width( 8 );
-
-    // print binding weights
-    cout << "MAXBIND : " << par.maxBindingWts << endl;
-    cout << "INTER : " ;
-    // print the interaction matrix
-    for ( int i = 0; i < nFactors(); i++ )
-    {
-        for ( int j = 0; j <= i; j++ )
-        {
-           cout << par.factorIntMat( i, j ) << "\t";
-        }
-    }
-    cout << endl;
-
-    // print the transcriptional effects
-    cout << "TXP : " << par.txpEffects << endl;
-
-    // print the repression effects
-    cout << "REP : " << par.repEffects << endl;
-
-    // print the basal transcriptions
-    cout << "BASAL : " << par.basalTxps << endl;
-
-    //print the pi values
-    cout << "PIS : " << par.pis << endl;
-
-    //print the beta values
-    cout << "BETAS : " << par.betas << endl;
-    //assert( par.betas.size() == nSeqs() );
-
-    cout << "THRESH : " << par.energyThrFactors << endl;
+	cout << par.my_pars;
     cout << flush;
 }
 
@@ -372,7 +344,7 @@ int ExprPredictor::simplex_minimize( ExprPar& par_result, double& obj_result )
     optimizer.set_initial_step(1.0);//TODO: enforce simplex starting size.
 	if(max_simplex_iterations > -1){ optimizer.set_maxeval(max_simplex_iterations); }
 
-    if(ExprPar::searchOption == CONSTRAINED){
+    if(this->search_option == CONSTRAINED){
       vector<double> free_mins;
       vector<double> fix_mins;
 
@@ -440,7 +412,7 @@ int ExprPredictor::gradient_minimize( ExprPar& par_result, double& obj_result )
     }
     optimizer.set_ftol_abs(ftol);
 
-    if(ExprPar::searchOption == CONSTRAINED){
+    if(this->search_option == CONSTRAINED){
       vector<double> free_mins;
       vector<double> fix_mins;
 
