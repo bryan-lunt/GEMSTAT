@@ -5,6 +5,8 @@
 //#include "ExprPredictor.h"
 #include "SeqAnnotator.h"
 
+#include <stdexcept>
+
 class ExprFunc; // forward reference to avoid circular issues. #include "ExprFunc.h"
 class ExprPar;
 
