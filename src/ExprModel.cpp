@@ -129,7 +129,7 @@ int CoopInfo::get_longest_coop_thr() const {
 void CoopInfo::read_coop_file(string filename, map<string, int> factorIdxMap){
 
         ifstream fin;
-		fin.exceptions ( std::ifstream::failbit);// | std::ifstream::badbit );
+		//fin.exceptions() ( std::ifstream::failbit);// | std::ifstream::badbit );
 		fin.open( filename.c_str(), std::ifstream::in );
 
         std:string line;
@@ -147,8 +147,8 @@ void CoopInfo::read_coop_file(string filename, map<string, int> factorIdxMap){
 					throw std::runtime_error("Badbit set");
 				}
                 LOCAL_TOKENIZE(tokens,line,line_ss);
-                int tf_i = factorIdxMap[tokens[0]];
-                int tf_j = factorIdxMap[tokens[1]];
+                int tf_i = factorIdxMap.at(tokens[0]);
+                int tf_j = factorIdxMap.at(tokens[1]);
 
                 //Using default interaction func in both directions
                 int forward_func = 1;
