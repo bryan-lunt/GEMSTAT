@@ -229,17 +229,26 @@ int ExprPredictor::predict( const SiteVec& targetSites_, int targetSeqLength, ve
 int ExprPredictor::predict( const ExprPar& par, const SiteVec& targetSites_, int targetSeqLength, vector< double >& targetExprs, int seq_num ) const
 {
 	// predict the expression
-    ExprFunc* func = createExprFunc( par , targetSites_, targetSeqLength, seq_num);
+	ExprFunc* func = NULL;
 	targetExprs.resize(nConds());
-    for ( int j = 0; j < nConds(); j++ )
-    {
-		Condition concs = training_data.getCondition( j , par );
-        double predicted = func->predictExpr( concs );
-        targetExprs[j] = ( predicted );
-    }
+	int number_conditions = nConds();
 
-    delete func;
-    return 0;
+	#pragma omp parallel private(func)
+	{
+		func = createExprFunc( par , targetSites_, targetSeqLength, seq_num);
+
+		#pragma omp for nowait
+		for ( int j = 0; j < number_conditions; j++ )
+		{
+			const Condition concs = training_data.getCondition( j , par );
+			double predicted = func->predictExpr( concs );
+
+			targetExprs[j] = predicted;
+		}
+
+		delete func;
+	}
+	return 0;
 }
 
 int ExprPredictor::predict_all( const ExprPar& par , vector< vector< double > > &targetExprs ) const
