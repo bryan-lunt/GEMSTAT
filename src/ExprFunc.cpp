@@ -402,7 +402,7 @@ double Rates_ExprFunc::expr_from_config(const vector< double >& marginals){
 double ExprFunc::compPartFuncOff() const
 {
     #ifdef DEBUG
-      assert(modelOption != CHRMOD_UNLIMITED && modelOption != CHRMOD_LIMITED );
+      //assert(modelOption != CHRMOD_UNLIMITED && modelOption != CHRMOD_LIMITED );
     #endif
 
     int n = n_sites;
