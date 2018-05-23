@@ -9,6 +9,7 @@
 #define SRC_PREDICTORTRAINER_H_
 
 #include <string>
+#include <ctime>
 
 using namespace std;
 
@@ -34,6 +35,39 @@ enum SearchType
 
 string getSearchOptionStr( SearchType searchOption );
 
+
+class TrainingCheckpointer {
+	public:
+		TrainingCheckpointer(){cp_check_n_evals = 20;//Someday, it would be cool to make this adaptive
+							cp_interval = 300/*seconds = 5min*/;
+							times_checkpointed=0;
+							cp_check_n_evals_elapsed = 0;
+							cp_last_checkpoint = std::time(NULL);
+							cp_filename = std::string();
+							cp_active = false;
+						}
+		~TrainingCheckpointer(){};
+		//Checkpointing related
+		int cp_check_n_evals; //default to 20 or something
+		std::time_t cp_interval; //min number of seconds between cps
+		bool cp_active;
+
+		bool checkpoint();//Default to NULL
+
+		virtual bool load_checkpoint();
+
+		void set_cp_filename(const std::string &newfn){
+			cp_filename = newfn;
+		}
+	protected:
+		virtual bool checkpoint_impl();
+
+		int times_checkpointed;
+		int cp_check_n_evals_elapsed;
+		std::time_t cp_last_checkpoint;
+
+		std::string cp_filename;
+};
 
 #include "SeqAnnotator.h"
 

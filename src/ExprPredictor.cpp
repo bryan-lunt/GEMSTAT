@@ -13,7 +13,7 @@
 double nlopt_obj_func( const vector<double> &x, vector<double> &grad, void* f_data);
 
 ExprPredictor::ExprPredictor( const vector <Sequence>& _seqs, const vector< SiteVec >& _seqSites, const vector< int >& _seqLengths, const DataSet& _training_data, const vector< Motif >& _motifs, const ExprModel& _expr_model,
-		const vector < bool >& _indicator_bool, const vector <string>& _motifNames) : seqs(_seqs), seqSites( _seqSites ), seqLengths( _seqLengths ), training_data( _training_data ),
+		const vector < bool >& _indicator_bool, const vector <string>& _motifNames) : TrainingCheckpointer(), seqs(_seqs), seqSites( _seqSites ), seqLengths( _seqLengths ), training_data( _training_data ),
 	expr_model( _expr_model),
 	indicator_bool ( _indicator_bool ), motifNames ( _motifNames ), in_training ( false ),
 	search_option(UNCONSTRAINED)
@@ -112,7 +112,7 @@ void ExprPredictor::set_objective_option( ObjType in_obj_option ){
 double ExprPredictor::objFunc( const ExprPar& par )
 {
     double objective_value = evalObjective( par );
-
+	this->cp_most_recent_par = par;// I bet this is VERY slow.
     return objective_value;
 }
 
@@ -481,8 +481,56 @@ int ExprPredictor::gradient_minimize( ExprPar& par_result, double& obj_result )
     return 0;
 }
 
+bool ExprPredictor::checkpoint_impl(){
+	//std::cerr << "FOOBAR CHECKPOINT! " << std::endl;
+
+
+	try{
+		ofstream cp_out_stream;
+		cp_out_stream.open( this->cp_filename.c_str() );
+		ExprPar cp_par = this->param_factory->changeSpace(this->cp_most_recent_par, PROB_SPACE);
+		cp_par.print( cp_out_stream, this->expr_model.motifnames, this->expr_model.coop_setup->coop_matrix );
+		cp_out_stream.close();
+	}catch(exception &e){
+		std::cerr << "NONFATAL There was an exception while trying to write the checkpoint.." << std::endl;
+	}
+
+	return true;
+}
+
+bool ExprPredictor::load_checkpoint(){
+	if(!cp_active){
+		return false;
+	}
+
+	try{
+		//test file exists first.
+		ifstream f(this->cp_filename.c_str());
+		bool exists_good = f.good();
+		f.close();
+
+		if(!exists_good){
+			return false;
+		}else{//Does exist and is good
+			ExprPar cp_loaded = this->param_factory->load( this->cp_filename.c_str() );
+			ExprPar cp_par = this->param_factory->changeSpace(cp_loaded, PROB_SPACE);
+			this->setPar(cp_par);
+			return true;
+		}
+	}catch(exception &e){
+		std::cerr << "NONFATAL There was an exception while trying to load the checkpoint.." << std::endl;
+		return false;
+	}
+	return false;
+}
 
 double nlopt_obj_func( const vector<double> &x, vector<double> &grad, void* f_data){
+	// the ExprPredictor object
+	ExprPredictor* predictor = (ExprPredictor*)f_data;
+
+	predictor->checkpoint();
+
+
         gsl_vector *xv = vector2gsl(x); //TODO: Ugly, remove (Make all objective functions use native STL vectors)
         double objective = gsl_obj_f(xv, f_data);
 

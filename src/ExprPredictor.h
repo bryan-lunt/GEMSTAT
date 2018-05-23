@@ -15,7 +15,7 @@
  ******************************************************/
 
 /* ExprPredictor class: the thermodynamic sequence-to-expression predictor */
-class ExprPredictor
+class ExprPredictor : public TrainingCheckpointer
 {
     public:
         // constructors
@@ -31,6 +31,7 @@ class ExprPredictor
         const IntMatrix& getRepressionMat() const { return expr_model.repressionMat; }
         const vector< SiteVec >& getSeqSites(){ return seqSites; }
         const ExprPar& getPar() const { return par_model; }
+		void setPar(const ExprPar &inpar ){ par_model = inpar;} 
         double getObj() const { return obj_model; }
 
         void set_objective_option( ObjType in_obj_option );
@@ -83,6 +84,12 @@ class ExprPredictor
         ParFactory *param_factory;
         ObjFunc *trainingObjective;
         SearchType search_option;
+
+	protected:
+		ExprPar cp_most_recent_par;
+		virtual bool checkpoint_impl();
+	public:
+		virtual bool load_checkpoint();
     private:
         //***** training data ******
         const DataSet& training_data;               //input and output curves

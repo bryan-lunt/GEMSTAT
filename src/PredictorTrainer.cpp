@@ -45,6 +45,52 @@ string getSearchOptionStr( SearchType searchOption )
     return "Invalid";
 }
 
+//bool TrainingCheckpointer::peek_checkpoint();
+bool TrainingCheckpointer::checkpoint(){
+	bool final_value = false;
+
+
+
+	if(!this->cp_active){
+		return false;
+	}
+
+	//std::cerr << "TEST CHECKPOINT " << this->cp_check_n_evals_elapsed << std::endl;
+
+	this->cp_check_n_evals_elapsed += 1;
+	if(this->cp_check_n_evals_elapsed >= this->cp_check_n_evals){
+		//std::cerr << "NEVALS PASSED" << std::endl;
+		std::time_t nowtime = std::time(NULL);
+		if(this->cp_last_checkpoint + this->cp_interval <= nowtime){
+
+			final_value = this->checkpoint_impl();
+
+			this->cp_last_checkpoint = std::time(NULL);//Checkpointing may be time consuming.
+			this->cp_check_n_evals_elapsed = 0;
+			if( final_value ){
+				this->times_checkpointed += 1;
+			}
+		}
+	}
+
+	return final_value;
+}
+
+bool TrainingCheckpointer::load_checkpoint(){
+	//#ifdef DEBUG
+	std::cerr << "Uninplemented load_checkpoint in TrainingCheckpointer subclass" << endl;
+	//#endif
+
+	return false;
+}
+bool TrainingCheckpointer::checkpoint_impl(){
+	//#ifdef DEBUG
+	std::cerr << "Uninplemented checkpoint_helper in TrainingCheckpointer subclass" << endl;
+	//#endif
+
+	return false;
+}
+
 /*
 PredictorTrainer::PredictorTrainer() {
 	// TODO Auto-generated constructor stub

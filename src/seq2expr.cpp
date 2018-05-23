@@ -43,6 +43,8 @@ int main( int argc, char* argv[] )
     string par_out_file; // the learned parameters will get stored here
     ofstream par_out_stream; // Uninitialized at first.
 
+	string cp_filename;
+
     string train_weights_filename;
     bool train_weights_loaded = false;
 
@@ -162,6 +164,9 @@ int main( int argc, char* argv[] )
             cmdline_interaction_option_str = argv[ ++i ];
     else if( !strcmp("-train_weights", argv[ i ]))
         train_weights_filename = argv[ ++i ];
+	else if( !strcmp("-cp_file", argv[ i ])){
+			cp_filename = argv[ ++i ];
+		}
     }
 
     if ( seqFile.empty() || exprFile.empty() || motifFile.empty() || factorExprFile.empty() || outFile.empty() || ( ( cmdline_modelOption == QUENCHING || cmdline_modelOption == CHRMOD_UNLIMITED || cmdline_modelOption == CHRMOD_LIMITED ) &&  factorInfoFile.empty() ) || ( cmdline_modelOption == QUENCHING && repressionFile.empty() ) )
@@ -648,6 +653,8 @@ int main( int argc, char* argv[] )
     predictor->max_simplex_iterations = cmdline_max_simplex_iterations;
     predictor->max_gradient_iterations = cmdline_max_gradient_iterations;
 
+	predictor->setPar(par_init);
+
 
     //Setup a weighted objective if that is appropriate
     if( predictor->objOption == WEIGHTED_SSE) {
@@ -733,9 +740,18 @@ int main( int argc, char* argv[] )
         }
     }
 
+	//We set the par to par_init previously.
+	//checkpointing
+	if(! cp_filename.empty() ){
+		std::cerr << "CHECKPOINT filename:" << cp_filename << std::endl;
+		predictor->set_cp_filename(cp_filename);
+		predictor->cp_active = true;
 
-
-
+		bool loaded_cp = predictor->load_checkpoint();
+		if(loaded_cp){
+			std::cerr << "CHECKPOINT Loaded! " << std::endl;
+		}
+	}
 
     // random number generator
     gsl_rng* rng;
@@ -746,7 +762,9 @@ int main( int argc, char* argv[] )
 
     // model fitting
 
-    predictor->train( par_init, rng );
+	ExprPar tmp_par = predictor->getPar();//The fact that this works and just calling it in train doesn't really frustrates me.
+    predictor->train( tmp_par, rng );
+	//predictor->train( par_init, rng );
 
     gsl_rng_free( rng );
     // print the training results
