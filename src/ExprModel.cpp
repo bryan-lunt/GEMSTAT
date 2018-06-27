@@ -38,6 +38,7 @@ ModelType getModelOption( const string& modelOptionStr )
     if ( toupperStr( modelOptionStr ) == "CHRMOD_LIMITED" ) return CHRMOD_LIMITED;
     if ( toupperStr( modelOptionStr ) == "RATES" ) return RATES;
     if ( toupperStr( modelOptionStr ) == "MARKOV" ) return MARKOV;
+	if ( toupperStr( modelOptionStr ) == "MEAN_FIELD" ) return MEAN_FIELD;
 
     cerr << "modelOptionStr is not a valid model option" << endl;
     exit(1);
@@ -53,6 +54,7 @@ string getModelOptionStr( ModelType modelOption )
     if ( modelOption == CHRMOD_LIMITED ) return "ChrMod_Limited";
     if ( modelOption == RATES ) return "Rates";
     if ( modelOption == MARKOV ) return "Markov";
+	if ( modelOption == MEAN_FIELD ) return "Mean_Field";
 
     return "Invalid";
 }
@@ -85,6 +87,10 @@ ExprFunc* ExprModel::createNewExprFunc( const ExprPar& par, const SiteVec& sites
     case MARKOV:
         parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
         return_exprfunc = new Markov_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
+        break;
+	case MEAN_FIELD:
+        parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
+        return_exprfunc = new MF_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
         break;
     default :
         cerr << "Somehow, an invalid model argument was passed. " << endl;
