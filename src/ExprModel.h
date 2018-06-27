@@ -16,7 +16,8 @@ typedef enum ModelType
     CHRMOD_UNLIMITED,                             // repressor works by chromatin modification (making it unaccessible), unlimited activation
     CHRMOD_LIMITED,                                // repressor works by chromatin modification (making it unaccessible), limited activation
     RATES,
-    MARKOV
+    MARKOV,
+	MEAN_FIELD
 } ModelType;
 
 #include "ExprPar.h"

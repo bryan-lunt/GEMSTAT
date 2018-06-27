@@ -69,7 +69,7 @@ void ExprFunc::setupSitesAndBoundaries(const SiteVec& _sites, int length, int se
   cerr << "running ExprFunc::setupSitesAndBoundaries(...)" << endl;
   #endif
 
-	
+
   int n = _sites.size();
   sites = SiteVec(_sites);
 
@@ -362,6 +362,130 @@ double Markov_ExprFunc::expr_from_config(const vector< double >& marginals){
   double Z_on = exp(sum_total)*my_promoter.basal_trans;
   return Z_on / (1.0 + Z_on);
 
+}
+
+MF_ExprFunc::MF_ExprFunc( const ExprModel* _model, const ExprPar& _par , const SiteVec& sites_, const int seq_len, const int seq_num) : Markov_ExprFunc( _model, _par , sites_, seq_len, seq_num){
+	//We use the same setup as the Markov ExprFunc
+}
+
+double MF_ExprFunc::predictExpr( const vector< double >& factorConcs )
+{
+	bool problem = false;
+  int seq_num = this->seq_number;
+
+  int n = n_sites;
+  #ifdef DEBUG
+  cout << "SITES size : " << sites.size() << " : n_sites : " << n_sites << endl;
+  assert(sites.size() == n_sites+2);
+  #endif
+
+  /*
+  cerr << "BOUNDARIES " << n << endl;
+  cerr << boundaries << endl;
+  cerr << "rev bounds " << endl;
+  cerr << rev_bounds << endl;
+  */
+  setupBindingWeights(factorConcs);
+
+    #ifdef DEBUG
+    cerr << "Done setting bindingWts" << endl;
+    #endif
+    // initialization
+    vector< gemstat_dp_t > logistic_binding( sites.size() );
+	vector< gemstat_dp_t > not_logistic_binding( sites.size() );
+    logistic_binding[0] = 1.0;
+	logistic_binding[logistic_binding.size() - 1] = 1.0;
+	not_logistic_binding[0] = 0.0;
+	not_logistic_binding[logistic_binding.size() - 1] = 0.0;
+	//logistic_binding for all sites.
+	for ( int i = 1; i <= n; i++ )
+    {
+		//TODO: shoudl be a better signmoidal
+		logistic_binding[i] = bindingWts[i] / ( 1.0 + bindingWts[i] );
+		not_logistic_binding[i] = 1.0 - logistic_binding[i];
+	}
+
+
+	vector< double > bindprobs(sites.size(),0.0);
+    // evaluate every site forward
+	// Message passing.
+    for ( int i = 1; i <= n; i++ )
+    {
+		//from previous sites
+		vector< gemstat_dp_t > messages(0,0.0);//This will be woefully slow
+		vector< gemstat_dp_t > neg_messages(0,0.0);
+
+        for ( int j = boundaries[i] + 1; j < i; j++ )
+        {
+			gemstat_dp_t message;
+			gemstat_dp_t neg_message;
+			if ( siteOverlap( sites[ j ], sites[ i ], motifs ) ){
+				//exclusion
+				message = not_logistic_binding[j];
+				neg_message = logistic_binding[j];
+			}else{
+				//normal message
+				message = compFactorInt( sites[ j ], sites[ i ] ) * logistic_binding[j];
+				neg_message = not_logistic_binding[j]; // no interaction when not bound.
+			}
+			messages.push_back(message);
+			neg_messages.push_back(neg_message);
+        }
+
+		//from sites ahead
+		for ( int j = rev_bounds[i] - 1; j > i; j-- )
+        {
+
+			gemstat_dp_t message;
+			gemstat_dp_t neg_message;
+			if ( siteOverlap( sites[ i ], sites[ j ], motifs ) ){
+				//exclusion
+				message = not_logistic_binding[j];
+				neg_message = logistic_binding[j];
+			}else{
+				//normal message
+				message = compFactorInt( sites[ i ], sites[ j ] ) * logistic_binding[j];
+				neg_message = not_logistic_binding[j]; // no interaction when not bound.
+			}
+			messages.push_back(message);
+			neg_messages.push_back(neg_message);
+        }
+
+		messages.push_back(logistic_binding[i]);
+		neg_messages.push_back(not_logistic_binding[i]);
+
+		gemstat_dp_t pos_total = 0.0;
+		gemstat_dp_t neg_total = 0.0;
+
+		for(int k = 0;k<messages.size();k++){
+			pos_total += log(0.000001 + messages[k]);
+			neg_total += log(0.000001 + neg_messages[k]);
+		}
+
+		//First try:
+		bindprobs[i] = 1.0 / (1.0 + exp(neg_total - pos_total));
+		
+
+        //#ifdef DEBUG
+        if( bindprobs[i] < 0.0 || bindprobs[i] > 1.0 || bindprobs[i]!= bindprobs[i]){
+          problem = true;
+		  cerr << "bindprobs[" << i << "] : " << bindprobs[i] << endl;
+		  cerr << "additional " << pos_total << " : " << neg_total << " : " << exp(neg_total - pos_total) << endl;
+        }
+        //#else
+        //	assert(bindprobs[i] >= 0.0);
+        //	assert(bindprobs[i] <= 1.0);
+        //#endif
+    }
+
+
+
+
+    //#ifdef DEBUG
+    if(problem){
+    }
+    //#endif
+    return this->expr_from_config(bindprobs);
 }
 
 //ModelType ExprFunc::modelOption = QUENCHING;

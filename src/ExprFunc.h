@@ -115,6 +115,13 @@ class Markov_ExprFunc : public ExprFunc {
       vector<int> rev_bounds;
 };
 
+class MF_ExprFunc : public Markov_ExprFunc {
+public:
+	MF_ExprFunc( const ExprModel* _model, const ExprPar& _par , const SiteVec& sites_, const int seq_len, const int seq_num);// : ExprFunc( _model, _par , sites_, seq_len, seq_num);
+	double predictExpr( const vector< double >& factorConcs );
+protected:
+};
+
 class Direct_ExprFunc : public ExprFunc {
   public:
       // constructors
