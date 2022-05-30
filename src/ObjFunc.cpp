@@ -189,6 +189,7 @@ double Weighted_RMSEObjFunc::eval(const vector<vector<double> >& ground_truth, c
   const ExprPar* par){
     #ifndef BETAOPTTOGETHER
         assert(false);
+        #pragma message("WARNING: Compiling without BETAOPTTOGETHER, Weighted_RMSEObjFunc unusable.")
     #endif
 
     assert(ground_truth.size() == prediction.size());
