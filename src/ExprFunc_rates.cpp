@@ -1,19 +1,37 @@
-
-
-
+#ifdef BENCHMARK
+    #include <chrono>
+    #include <iostream>
+#endif //BENCHMARK
 
 #include "ExprFunc_rates.h"
 
 double Rates_ExprFunc::predictExpr( const vector< double >& factorConcs )
 {
-
+    
+    #ifdef BENCHMARK
+    std::chrono::time_point<std::chrono::high_resolution_clock> start_time, end_time;
+    std::chrono::duration<double> run_time;
+    
+    start_time = std::chrono::high_resolution_clock::now();
+    #endif //BENCHMARK
+    
     // compute the Boltzman weights of binding for all sites
     setupBindingWeights(factorConcs);
 
+    /*
     double Z_O  = compPartFuncO();
     double Z_A  = compPartFuncA();
     double Z_B  = compPartFuncB();
     double Z_AB = compPartFuncAB();
+    */
+    
+    rates_opt_return_t all_parts = compAllParts();
+    gemstat_dp_t Z_O = all_parts.O;
+    gemstat_dp_t Z_A = all_parts.A;
+    gemstat_dp_t Z_B = all_parts.B;
+    gemstat_dp_t Z_AB = all_parts.AB;
+    
+    
 
     gemstat_dp_t Z_total = Z_O + Z_A + Z_B + Z_AB;
 
@@ -21,14 +39,27 @@ double Rates_ExprFunc::predictExpr( const vector< double >& factorConcs )
     gemstat_dp_t prob_B = (Z_B + Z_AB) / Z_total;
 
 
-
     //TODO: Handle K_max idea
 
     /** I have no idea what the pis were for in this originally */
     //return (prob_A*prob_B*par.pis[seq_num])/(prob_A + prob_B*par.pis[seq_num]);
     
+    #ifdef BENCHMARK
+    end_time = std::chrono::high_resolution_clock::now();
+    run_time = end_time - start_time;
+    std::cout << "Duration: " << run_time.count() << " sec" << std::endl;
+    #endif //BENCHMARK
+    
     return (prob_A*prob_B)/(prob_A + prob_B);
 }
+
+/*****************
+*Slow version. Only kept for debugging / confirmation.
+*The version that does all at once is at least 1/3 faster.
+*********************/
+
+/*
+
 
 double Rates_ExprFunc::compPartFuncO() const
 {
@@ -101,7 +132,7 @@ double Rates_ExprFunc::compPartFuncO() const
 
 double Rates_ExprFunc::compPartFuncA() const
 {
-    int n = sites.size() - 1;
+    int n = n_sites;
 
     // initialization
     vector< gemstat_dp_t > Z( n + 1 );
@@ -127,7 +158,7 @@ double Rates_ExprFunc::compPartFuncA() const
 
 double Rates_ExprFunc::compPartFuncB() const
 {
-    int n = sites.size() - 1;
+    int n = n_sites;
 
     // initialization
     vector< gemstat_dp_t > Z( n + 1 );
@@ -153,7 +184,7 @@ double Rates_ExprFunc::compPartFuncB() const
 
 double Rates_ExprFunc::compPartFuncAB() const
 {
-    int n = sites.size() - 1;
+    int n = n_sites;
 
     // initialization
     vector< gemstat_dp_t > Z( n + 1 );
@@ -175,4 +206,62 @@ double Rates_ExprFunc::compPartFuncAB() const
     }
 
     return Zt[n];
+}
+*/
+
+/*********
+*Faster version of the reccurance.
+* IMHO, it is also easier to read and could be made yet faster by using
+* vector intrinsics.
+*
+**********/
+
+typedef struct {gemstat_dp_t O, A, B, AB;} all_parts_dp_t;
+
+rates_opt_return_t Rates_ExprFunc::compAllParts() const
+{
+    int n = n_sites;
+
+    // initialization
+    vector< all_parts_dp_t > Z( n + 1 );
+    Z[0] = {1.0,1.0,1.0,1.0};
+    vector< all_parts_dp_t > Zt( n + 1 );
+    Zt[0] = {1.0,1.0,1.0,1.0};
+
+    // recurrence
+    for ( int i = 1; i <= n; i++ )
+    {
+        auto site_i_alpha_a = this->txpEffects[ sites[ i ].factorIdx ];
+        auto site_i_alpha_r = this->repEffects[ sites[ i ].factorIdx ];
+        
+        all_parts_dp_t sum = Zt[boundaries[i]];
+        for ( int j = boundaries[i] + 1; j < i; j++ )
+        {
+            if ( siteOverlap( sites[ j ], sites[ i ], motifs ) ) continue;
+            gemstat_dp_t factor_interaction = compFactorInt( sites[ j ], sites[ i ] );
+            
+            //Could be vector intrinsics...
+            sum.O  += factor_interaction * Z[ j ].O;
+            sum.A  += factor_interaction * Z[ j ].A;
+            sum.B  += factor_interaction * Z[ j ].B;
+            sum.AB += factor_interaction * Z[ j ].AB;
+        }
+        
+        //O
+        Z[ i ].O  = bindingWts[ i ] * sum.O;
+        //A
+        Z[ i ].A  = bindingWts[ i ] * sum.A  * site_i_alpha_a ;
+        //B
+        Z[ i ].B  = bindingWts[ i ] * sum.B  *                  site_i_alpha_r ;
+        //AB
+        Z[ i ].AB = bindingWts[ i ] * sum.AB * site_i_alpha_a * site_i_alpha_r ;//could be precomputed
+        
+        
+        Zt[i].O = Z[i].O + Zt[i - 1].O;
+        Zt[i].A = Z[i].A + Zt[i - 1].A;
+        Zt[i].B = Z[i].B + Zt[i - 1].B;
+        Zt[i].AB = Z[i].AB + Zt[i - 1].AB;
+    }
+
+    return {Zt[n].O,Zt[n].A,Zt[n].B,Zt[n].AB};
 }

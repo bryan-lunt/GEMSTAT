@@ -3,6 +3,7 @@
 
 #include "ExprFunc.h"
 
+typedef struct {gemstat_dp_t O, A, B, AB; } rates_opt_return_t;
 
 class Rates_ExprFunc : public ExprFunc {
   public:
@@ -11,11 +12,14 @@ class Rates_ExprFunc : public ExprFunc {
       double predictExpr( const vector< double >& factorConcs );
   protected:
     // compute the partition function when the BTM is bound
+    /*
     double compPartFuncAB() const;
     double compPartFuncA() const;
     double compPartFuncB() const;
     double compPartFuncO() const;
+    */
 
+    rates_opt_return_t compAllParts() const;
 };
 
 
