@@ -25,8 +25,12 @@ add_subdirectory("tools")
 add_subdirectory("annotation")
 
 
+add_library(exprfunc_rates OBJECT ExprFunc_rates.h ExprFunc_rates.cpp)
+target_link_libraries(exprfunc_rates GS_tools GS_annot)
+
 #Does this default to being an object on older CMake?
 add_library(gem_everything DataSet.cpp ExprFunc.cpp ExprModel.cpp ExprPar.cpp ExprPredictor.cpp FactorIntFunc.cpp IO.cpp ObjFunc.cpp PredictorTrainer.cpp)
+target_link_libraries(gem_everything exprfunc_rates)
 target_link_libraries(gem_everything GS_tools GS_annot)
 target_link_libraries(gem_everything snot)
 target_link_libraries(gem_everything "nlopt")#should get includes

@@ -3,14 +3,17 @@
 
 
 
-#include "ExprPredictor.h"
-#include "ExprModel.h"
-
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <algorithm>
 #include <iterator>
+
+#include "ExprPredictor.h"
+#include "ExprModel.h"
+
+#include "ExprFunc.h"
+#include "ExprFunc_rates.h"
 
 ExprModel::ExprModel( ModelType _modelOption, bool _one_qbtm_per_crm, vector< Motif>& _motifs, vector< string>& _motif_names, int _maxContact, vector< bool >& _actIndicators, vector< bool>& _repIndicators, IntMatrix& _repressionMat, double _repressionDistThr ) : modelOption( _modelOption), one_qbtm_per_crm( _one_qbtm_per_crm), motifs( _motifs), motifnames(_motif_names), maxContact( _maxContact), actIndicators( _actIndicators), repIndicators( _repIndicators), repressionMat( _repressionMat), repressionDistThr( _repressionDistThr)
 {
@@ -82,7 +85,11 @@ ExprFunc* ExprModel::createNewExprFunc( const ExprPar& par, const SiteVec& sites
         parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
         return_exprfunc = new ChrModUnlimited_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
         break;
-    case MARKOV:
+    case RATES :
+        parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
+        return_exprfunc = new Rates_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
+        break;
+    case MARKOV :
         parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
         return_exprfunc = new Markov_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
         break;

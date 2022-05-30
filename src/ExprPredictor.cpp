@@ -9,6 +9,7 @@
 #include "ExprPredictor.h"
 #include "ExprPar.h"
 #include "ExprFunc.h"
+#include "ExprFunc_rates.h"
 
 double nlopt_obj_func( const vector<double> &x, vector<double> &grad, void* f_data);
 

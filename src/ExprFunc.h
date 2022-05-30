@@ -7,8 +7,16 @@
 #include "DataSet.h"
 
 /*****************************************************
- * Expression Model and Parameters
- ******************************************************/
+* Expression Model and Parameters
+******************************************************/
+
+
+//It is a precondition that site_a.start <= site_b.start
+#define ORDERED_SITE_OVERLAP(site_a, site_b) site_a.end < site_b.start
+
+//It is a precondition that the sites do not overlap, and that site_b comes after site_a
+#define SITE_DISTANCE(site_a, site_b) site_b.start - site_a.end
+
 
 typedef long double gemstat_dp_t;
 

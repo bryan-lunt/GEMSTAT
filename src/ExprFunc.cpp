@@ -5,11 +5,6 @@
 
 //#define DEBUG
 
-//It is a precondition that site_a.start <= site_b.start
-#define ORDERED_SITE_OVERLAP(site_a, site_b) site_a.end < site_b.start
-
-//It is a precondition that the sites do not overlap, and that site_b comes after site_a
-#define SITE_DISTANCE(site_a, site_b) site_b.start - site_a.end
 
 
 ExprFunc::ExprFunc( const ExprModel* _model, const ExprPar& _par , const SiteVec& sites_, const int seq_len, const int seq_num): expr_model(_model), par(_par), motifs( _model->motifs ), actIndicators( _model->actIndicators ), maxContact( _model->maxContact ), repIndicators( _model->repIndicators ), repressionMat( _model->repressionMat ), repressionDistThr( _model->repressionDistThr ), factorIntMat(_model->motifs.size(),_model->motifs.size(),1.0)
@@ -412,7 +407,9 @@ gemstat_dp_t ExprFunc::compPartFuncOff() const
             //cout << "Z[j]: " << Z[ j ] << endl;
             gemstat_dp_t old_sum = sum;
             sum += compFactorInt( sites[ j ], sites[ i ] ) * Z[ j ];
-            if( sum != sum || isinf( sum ))
+            
+            #ifdef DEBUG
+            if( sum != sum || isinf( sum )) //DEBUG
             {
                 cout << "Old sum:\t" << old_sum << endl;
                 cout << "Factors:\t" << sites[ i ].factorIdx << "\t" << sites[ j ].factorIdx << endl;
@@ -422,14 +419,18 @@ gemstat_dp_t ExprFunc::compPartFuncOff() const
                 cout << "DEBUG: sum nan/inf\t"<< sum << endl;
                 exit(1);
             }
+            #endif //DEBUG
         }
 
         Z[i] = bindingWts[ i ] * sum;
-        if( Z[i]!=Z[i] )
+        
+        #ifdef DEBUG
+        if( Z[i]!=Z[i] ) //DEBUG
         {
             cout << "DEBUG: Z bindingWts[i]: " << sites[i].factorIdx << "\t" << bindingWts[ sites[i].factorIdx ] <<"\t" << sum << endl;
             exit(1);
         }
+        #endif //DEBUG
         Zt[i] = Z[i] + Zt[i - 1];
         //cout << "debug: Zt[i] = " << Zt[i] << endl;
     }
