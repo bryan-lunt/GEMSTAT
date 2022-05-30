@@ -358,11 +358,11 @@ double Markov_ExprFunc::expr_from_config(const vector< double >& marginals){
 
     if( actIndicators[ sites[ i ].factorIdx ] )
     {
-        log_effect = log(txpEffects[ sites[ i ].factorIdx ]);
+        log_effect = log(txpEffects[ sites[ i ].factorIdx ]);//TODO: Slow, cache this.
     }
     if( repIndicators[ sites[ i ].factorIdx ] )
     {
-        log_effect = log(repEffects[ sites[ i ].factorIdx ]);
+        log_effect = log(repEffects[ sites[ i ].factorIdx ]);//TODO: Slow, cache this.
     }
 
     sum_total += log_effect*marginals[i];
@@ -527,7 +527,7 @@ gemstat_dp_t Direct_ExprFunc::compPartFuncOn() const
             Z[ i ] = bindingWts[ i ] * txpEffects[ sites[ i ].factorIdx ] * sum;
             //cout << "1: " << txpEffects[ sites[ i ].factorIdx ] << endl;
         }
-        if( repIndicators[ sites[ i ].factorIdx ] )
+        if( repIndicators[ sites[ i ].factorIdx ] )// Only for backwards compatibility.
         {
             Z[ i ] = bindingWts[ i ] * repEffects[ sites[ i ].factorIdx ] * sum;
             //cout << "2: " << repEffects[ sites[ i ].factorIdx ] << endl;
