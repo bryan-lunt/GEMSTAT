@@ -24,6 +24,7 @@ add_subdirectory("tools")
 
 add_subdirectory("annotation")
 
+add_definitions(-DBETAOPTTOGETHER)
 
 add_library(exprfunc_rates OBJECT ExprFunc_rates.h ExprFunc_rates.cpp)
 target_link_libraries(exprfunc_rates GS_tools GS_annot)
