@@ -31,18 +31,17 @@ double Rates_ExprFunc::predictExpr( const vector< double >& factorConcs )
     gemstat_dp_t Z_B = all_parts.B;
     gemstat_dp_t Z_AB = all_parts.AB;
     
-    
+    //Apply qbtm, there is one for both arcs. recycle pi as the one for the other arc.
+    GEMSTAT_PROMOTER_DATA_T my_promoter = par.getPromoterData( this->seq_number );//should happen at object construction
+    Z_A *= my_promoter.basal_trans;
+    Z_B *= my_promoter.pi;
+    Z_AB *= my_promoter.basal_trans*my_promoter.pi;
 
     gemstat_dp_t Z_total = Z_O + Z_A + Z_B + Z_AB;
 
     gemstat_dp_t prob_A = (Z_A + Z_AB) / Z_total;
     gemstat_dp_t prob_B = (Z_B + Z_AB) / Z_total;
 
-
-    //TODO: Handle K_max idea
-
-    /** I have no idea what the pis were for in this originally */
-    //return (prob_A*prob_B*par.pis[seq_num])/(prob_A + prob_B*par.pis[seq_num]);
     
     #ifdef BENCHMARK
     end_time = std::chrono::high_resolution_clock::now();
@@ -50,7 +49,14 @@ double Rates_ExprFunc::predictExpr( const vector< double >& factorConcs )
     std::cout << "Duration: " << run_time.count() << " sec" << std::endl;
     #endif //BENCHMARK
     
-    return (prob_A*prob_B)/(prob_A + prob_B);
+    //TODO: Handle K_max idea
+
+    /** I have no idea what the pis were for in this originally */
+    //return (prob_A*prob_B*par.pis[seq_num])/(prob_A + prob_B*par.pis[seq_num]);
+    
+    return 2.0*(prob_A*prob_B)/(prob_A + prob_B);
+    
+    
 }
 
 /*****************
