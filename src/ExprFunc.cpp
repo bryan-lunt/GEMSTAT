@@ -79,7 +79,7 @@ void ExprFunc::setupSitesAndBoundaries(const SiteVec& _sites, int length, int se
 
 
   int n = _sites.size();
-  sites = SiteVec();
+  sites = SiteVec(0);
   sites.reserve(2+n);
 
 

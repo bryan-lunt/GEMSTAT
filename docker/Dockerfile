@@ -19,4 +19,8 @@ RUN apt-get update -y -q && \
     apt-get install -y libgsl-dev && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update -y -q && \
+    apt-get install -y valgrind && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /workspace
