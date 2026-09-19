@@ -79,7 +79,8 @@ void ExprFunc::setupSitesAndBoundaries(const SiteVec& _sites, int length, int se
 
 
   int n = _sites.size();
-  sites = SiteVec(_sites);
+  sites = SiteVec();
+  sites.reserve(2+n);
 
 
 	//Prevents crashes if there are no annotated sites in the sequence.
@@ -91,7 +92,8 @@ void ExprFunc::setupSitesAndBoundaries(const SiteVec& _sites, int length, int se
 		pseudo_end = _sites[_sites.size()-1].start+1000;
 	}
 
-	sites.insert( sites.begin(), Site(pseudo_start,pseudo_start,true,-1,0.0,1.0) );        // start with a pseudo-site at position 0
+  sites.push_back( Site(pseudo_start,pseudo_start,true,-1,0.0,1.0) );        // start with a pseudo-site at position 0
+  std::copy(_sites.begin(),_sites.end(),std::back_inserter(sites));
 	sites.push_back( Site(pseudo_end,pseudo_end,true,-1,0.0,1.0) );       //and another pseudo-site at the end
 
   // store the sequence
