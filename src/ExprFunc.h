@@ -29,6 +29,7 @@ class ExprFunc
         virtual double predictExpr( const vector< double >& factorConcs );
         virtual double predictExpr( const Condition& in_condition );
         const ExprPar& getPar() const { return par; }
+				void setPar(const ExprPar& _par) { this->par = _par; }
 
         //static ModelType modelOption;             // model option
         static bool one_qbtm_per_crm;

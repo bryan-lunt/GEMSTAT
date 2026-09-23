@@ -1,6 +1,9 @@
 #ifndef EXPR_PREDICTOR_H
 #define EXPR_PREDICTOR_H
 
+#include <memory>
+#include <map>
+
 #include "ExprModel.h"
 #include "FactorIntFunc.h"
 #include "SeqAnnotator.h"
@@ -110,6 +113,9 @@ class ExprPredictor : public TrainingAware
 
         // create the expression function
         ExprFunc* createExprFunc( const ExprPar& par, const SiteVec& sites_, const int seq_length, const int seq_num ) const;
+				ExprFunc* getExprFunc( const ExprPar& par, const SiteVec& sites_, const int seq_length, const int seq_num ) const;
+				mutable std::map<int, std::unique_ptr<ExprFunc>> expr_func_memo;
+
 
         // objective functions
         double evalObjective( const ExprPar& par );

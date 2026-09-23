@@ -263,7 +263,9 @@ int ExprPredictor::predict( const ExprPar& par, const SiteVec& targetSites_, int
 		//End of skipping code.	END_SKIPPING
 
 
-    ExprFunc* func = createExprFunc( par , targetSites_, targetSeqLength, seq_num);
+		ExprFunc* func = getExprFunc( par , targetSites_, targetSeqLength, seq_num);
+		//func->setPar(par);already done
+
 		targetExprs.resize(nConds());
     for ( int j = 0; j < nConds(); j++ )
     {
@@ -282,7 +284,7 @@ int ExprPredictor::predict( const ExprPar& par, const SiteVec& targetSites_, int
         targetExprs[j] = ( predicted );
     }
 
-    delete func;
+		//delete func //no longer delete because this is only a borrowed reference.
     return 0;
 }
 
@@ -346,6 +348,21 @@ ExprFunc* ExprPredictor::createExprFunc( const ExprPar& par, const SiteVec& site
 
     return expr_model.createNewExprFunc( par, sites_, seq_length, seq_num );
 }
+
+ExprFunc* ExprPredictor::getExprFunc( const ExprPar& par, const SiteVec& sites_, const int seq_length, const int seq_num ) const
+{
+		ExprFunc* to_return = nullptr;
+
+		if( auto search = expr_func_memo.find(seq_num) ; search != expr_func_memo.end() ){
+			to_return = search->second.get();
+			to_return->setPar(par);
+		}else{
+			to_return = expr_model.createNewExprFunc( par, sites_, seq_length, seq_num );
+			expr_func_memo[seq_num] = std::unique_ptr<ExprFunc>(to_return);
+		}
+			return to_return;
+}
+
 
 
 int indices_of_crm_in_gene[] =
