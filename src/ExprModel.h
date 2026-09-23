@@ -36,7 +36,7 @@ class CoopInfo {
         IntMatrix coop_matrix;
         vector< FactorIntFunc* > int_funcs;
 
-        FactorIntFunc* coop_func_for(int i, int j){ return int_funcs[coop_matrix(i,j)]; }
+				const FactorIntFunc* coop_func_for(int i, int j) const { return int_funcs[coop_matrix(i,j)]; }
 
 
         void set_default_interaction( FactorIntFunc* new_default);

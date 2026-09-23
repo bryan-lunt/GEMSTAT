@@ -69,7 +69,7 @@ void ExprFunc::setupSitesAndBoundaries(const SiteVec& _sites, int length, int se
   cerr << "running ExprFunc::setupSitesAndBoundaries(...)" << endl;
   #endif
 
-	
+
   int n = _sites.size();
   sites = SiteVec(_sites);
 
@@ -717,7 +717,7 @@ double ExprFunc::compFactorInt( const Site& a, const Site& b ) const
     double dist = abs( b.start - a.start );
     //bool orientation = ( a.strand == b.strand );
 
-    FactorIntFunc* an_int_func = expr_model->coop_setup->coop_func_for(a.factorIdx, b.factorIdx);
+		const FactorIntFunc* an_int_func = expr_model->coop_setup->coop_func_for(a.factorIdx, b.factorIdx);
     return an_int_func->compFactorInt( maxInt, dist, a.strand, b.strand );
 
     //TODO: we need to get this information from the expr_model.

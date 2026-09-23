@@ -38,8 +38,8 @@ class FactorIntFunc
             return distThr;
         }
     protected:
-        double distThr;                           // if distance < thr, the "normal" value; otherwise 1 (no interaction)
-        double orientationEffect;                 // the effect of orientation: if at different strands, the effect should be multiplied this value
+				const double distThr;                           // if distance < thr, the "normal" value; otherwise 1 (no interaction)
+				const double orientationEffect;                 // the effect of orientation: if at different strands, the effect should be multiplied this value
 };
 
 class Null_FactorIntFunc : public FactorIntFunc
@@ -75,7 +75,7 @@ class FactorIntFuncGaussian : public FactorIntFunc
         // compute the factor interaction
         double compFactorInt( double normalInt, double dist, bool a_strand, bool b_strand ) const;
     private:
-        double sigma;                             // standard deviation of
+				const double sigma;                             // standard deviation of
 };
 
 /* FactorIntFuncGeometric class: distance function decays geometrically (but never less than 1) */
@@ -90,7 +90,7 @@ class FactorIntFuncGeometric : public FactorIntFunc
         double compFactorInt( double normalInt, double dist, bool a_strand, bool b_strand ) const;
 
     private:
-        double spacingEffect;                     // the effect of spacing
+				const double spacingEffect;                     // the effect of spacing
 };
 
 /* FactorIntFuncHelical class: binary distance function */
@@ -110,36 +110,33 @@ class Dimer_FactorIntFunc : public FactorIntFunc
 {
     public:
         // constructors
-        Dimer_FactorIntFunc( double _distThr, bool _a_strand, bool _b_strand ) : FactorIntFunc(_distThr, 1.0)
-        {
-            expected_a_strand = _a_strand;
-            expected_b_strand = _b_strand;
-        }
+				Dimer_FactorIntFunc( double _distThr, bool _a_strand, bool _b_strand ) : FactorIntFunc(_distThr, 1.0), expected_a_strand(_a_strand), expected_b_strand(_b_strand)
+        {}
 
         // compute the factor interaction
         virtual double compFactorInt( double normalInt, double dist, bool a_strand, bool b_strand ) const;
-
-        bool expected_a_strand;
-        bool expected_b_strand;
+		protected:
+				const bool expected_a_strand;
+				const bool expected_b_strand;
 };
 
 class HalfDirectional_FactorIntFunc : public Dimer_FactorIntFunc
 {
     public:
-        HalfDirectional_FactorIntFunc( double _distThr, bool _a_strand, bool _b_strand , bool _enforce_a_dir, bool _enforce_b_dir ) : Dimer_FactorIntFunc(_distThr, _a_strand, _b_strand)
+				HalfDirectional_FactorIntFunc( double _distThr, bool _a_strand, bool _b_strand , bool _enforce_a_dir, bool _enforce_b_dir ) : Dimer_FactorIntFunc(_distThr, _a_strand, _b_strand), enforce_a(_enforce_a_dir), enforce_b(_enforce_b_dir)
         {
             assert(_enforce_a_dir || _enforce_b_dir);
             if(!_enforce_a_dir && !_enforce_b_dir){
                 throw std::runtime_error("Could not construct a HalfDirectional interaction function with both proteins as 'don't care' direction.");
             }
-            enforce_a = _enforce_a_dir;
-            enforce_b = _enforce_b_dir;
+						//enforce_a = _enforce_a_dir;
+						//enforce_b = _enforce_b_dir;
         }
     // compute the factor interaction
     double compFactorInt( double normalInt, double dist, bool a_strand, bool b_strand ) const;
     protected:
-        bool enforce_a;
-        bool enforce_b;
+				const bool enforce_a;
+				const bool enforce_b;
 };
 
 #endif
