@@ -57,6 +57,8 @@ ExprFunc::ExprFunc( const ExprModel* _model, const ExprPar& _par , const SiteVec
     //Order doesn't matter for factor interactions, positions will be looked up.
     for(int k = 0;k<((gsparams::DictList&)par.my_pars)["inter"].size();k++){
         //need to split the name.
+
+				//TODO: UGLY and BAD ENCAPSULATION. future versions of SNOT must have a search so that client code doesn't need to know these inner workings.
         std::string key = ((gsparams::DictList&)par.my_pars)["inter"].map_key_storage.at(k);
         double value = ((gsparams::DictList&)par.my_pars)["inter"].list_storage.at(k);
 
@@ -70,6 +72,47 @@ ExprFunc::ExprFunc( const ExprModel* _model, const ExprPar& _par , const SiteVec
 
     this->setupSitesAndBoundaries(sites_,seq_length, seq_num);
 
+}
+
+void ExprFunc::setPar(const ExprPar& _par){
+		this->par = _par;
+
+		int nFactors = par.nFactors();
+
+		//setup legacy parameters
+    maxBindingWts.clear();
+    maxBindingWts.assign(nFactors,1.0);
+    //maxBindingWts = vector < GEMSTAT_PAR_FLOAT_T >(nFactors);          // binding weight of the strongest site for each TF: K(S_max) [TF_max]
+    txpEffects.clear();
+    txpEffects.resize(nFactors,1.0);
+    repEffects.clear();
+    repEffects.resize(nFactors,1.0);
+
+		std::map<std::string, int> tf_names_to_ids;
+		for(int i = 0;i<expr_model->motifnames.size();i++){
+				tf_names_to_ids[expr_model->motifnames.at(i)] = i;
+		}
+		//Do not assume that the tfs dictionary is in our internal order.
+    for(int i = 0;i<nFactors;i++){
+        const std::string &which_tf = expr_model->motifnames.at(i);
+        maxBindingWts[i] = ((gsparams::DictList&)par.my_pars)["tfs"][which_tf]["maxbind"] ;
+        txpEffects[i] = ((gsparams::DictList&)par.my_pars)["tfs"][which_tf]["alpha_a"] ;
+        repEffects[i] = ((gsparams::DictList&)par.my_pars)["tfs"][which_tf]["alpha_r"] ;
+    }
+
+		//factorIntMat = Matrix(nFactors, nFactors);                      // (maximum) interactions between pairs of factors: omega(f,f')
+    //Order doesn't matter for factor interactions, positions will be looked up.
+    for(int k = 0;k<((gsparams::DictList&)par.my_pars)["inter"].size();k++){
+        //need to split the name.
+        std::string key = ((gsparams::DictList&)par.my_pars)["inter"].map_key_storage.at(k);
+        double value = ((gsparams::DictList&)par.my_pars)["inter"].list_storage.at(k);
+
+        int split_pos = key.find(":");
+        int i = tf_names_to_ids[key.substr(0,split_pos)];//TODO: more defensive here. Make sure the value actually existed.
+        int j = tf_names_to_ids[key.substr(split_pos+1,key.size())];
+        factorIntMat.setElement(i,j,value);
+        factorIntMat.setElement(j,i,value);
+    }
 }
 
 void ExprFunc::setupSitesAndBoundaries(const SiteVec& _sites, int length, int seq_num){

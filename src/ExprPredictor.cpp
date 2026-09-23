@@ -356,9 +356,17 @@ ExprFunc* ExprPredictor::getExprFunc( const ExprPar& par, const SiteVec& sites_,
 		if( auto search = expr_func_memo.find(seq_num) ; search != expr_func_memo.end() ){
 			to_return = search->second.get();
 			to_return->setPar(par);
+			#ifdef MEMOIZATION_ASSERT
+			assert(expr_func_memo_lengths[search->first] == seq_length);
+			assert(expr_func_memo_sites[search->first] == sites_);
+			#endif
 		}else{
 			to_return = expr_model.createNewExprFunc( par, sites_, seq_length, seq_num );
 			expr_func_memo[seq_num] = std::unique_ptr<ExprFunc>(to_return);
+			#ifdef MEMOIZATION_ASSERT
+			expr_func_memo_lengths[seq_num] = seq_length;
+			expr_func_memo_sites[seq_num] = SiteVec(sites_);
+			#endif
 		}
 			return to_return;
 }

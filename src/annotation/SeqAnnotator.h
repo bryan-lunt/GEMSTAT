@@ -195,11 +195,21 @@ class Site
 
         // assignment
         Site& operator=( const Site& other ) { copy( other ); return *this; }
+				bool operator==( const Site& other ) const {
+					return (start == other.start
+									&& end == other.end
+									&& strand == other.strand
+									&& factorIdx == other.factorIdx
+									&& energy == other.energy
+									&& wtRatio == other.wtRatio
+									&& prior_probability == other.prior_probability
+								);
+				}
 
         friend ostream& operator<<( ostream& os, const Site& site );
 
         int start;                                // start position: 0-based
-		int end;									// end position: 0-based, the index of the last nucleotide in the site. -1 indicates no information.
+        int end;                                  // end position: 0-based, the index of the last nucleotide in the site. -1 indicates no information.
         bool strand;                              // 1: positive; 0: negative
         int factorIdx;                            // the index of the associated TF, starting from 0
         double energy;                            // the energy relative to the strongest site (nonnegative)

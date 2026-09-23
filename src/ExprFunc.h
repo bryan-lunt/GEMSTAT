@@ -29,13 +29,13 @@ class ExprFunc
         virtual double predictExpr( const vector< double >& factorConcs );
         virtual double predictExpr( const Condition& in_condition );
         const ExprPar& getPar() const { return par; }
-				void setPar(const ExprPar& _par) { this->par = _par; }
+				void setPar(const ExprPar& _par);
 
         //static ModelType modelOption;             // model option
         static bool one_qbtm_per_crm;
     protected:
         //setup functions that may be useful to subclasses
-        virtual void setupSitesAndBoundaries(const SiteVec& _sites, int length, int seq_num);
+        void setupSitesAndBoundaries(const SiteVec& _sites, int length, int seq_num);
         void setupBindingWeights(const vector< double >& factorConcs);
         // TF binding motifs
 
@@ -53,7 +53,7 @@ class ExprFunc
         int seq_length;
 
         // model parameters
-        ExprPar par;//NOTE: Removing "const" here caused the copy constructor to be called. Thus the ExprFunc gets its own copy that will not have problems when the original par is changed.
+				ExprPar par;//NOTE: Removing "const" here caused the copy constructor to be called. Thus the ExprFunc gets its own copy that will not have problems when the original par is changed.
                           //NOTE: (Additional) put const back, copying is slow, and par should be constant for an ExprFunc, this also fixed a memory leak.
 
         // the sequence whose expression is to be predicted

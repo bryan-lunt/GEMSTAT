@@ -115,7 +115,10 @@ class ExprPredictor : public TrainingAware
         ExprFunc* createExprFunc( const ExprPar& par, const SiteVec& sites_, const int seq_length, const int seq_num ) const;
 				ExprFunc* getExprFunc( const ExprPar& par, const SiteVec& sites_, const int seq_length, const int seq_num ) const;
 				mutable std::map<int, std::unique_ptr<ExprFunc>> expr_func_memo;
-
+				#ifdef MEMOIZATION_ASSERT
+				mutable std::map<int, SiteVec> expr_func_memo_sites;
+				mutable std::map<int, int> expr_func_memo_lengths;
+				#endif
 
         // objective functions
         double evalObjective( const ExprPar& par );
