@@ -40,6 +40,7 @@ ModelType getModelOption( const string& modelOptionStr )
     if ( toupperStr( modelOptionStr ) == "CHRMOD_UNLIMITED" ) return CHRMOD_UNLIMITED;
     if ( toupperStr( modelOptionStr ) == "CHRMOD_LIMITED" ) return CHRMOD_LIMITED;
     if ( toupperStr( modelOptionStr ) == "RATES" ) return RATES;
+		if ( toupperStr( modelOptionStr ) == "STATES" ) return STATES;
     if ( toupperStr( modelOptionStr ) == "MARKOV" ) return MARKOV;
 
     cerr << "modelOptionStr is not a valid model option" << endl;
@@ -55,6 +56,7 @@ string getModelOptionStr( ModelType modelOption )
     if ( modelOption == CHRMOD_UNLIMITED ) return "ChrMod_Unlimited";
     if ( modelOption == CHRMOD_LIMITED ) return "ChrMod_Limited";
     if ( modelOption == RATES ) return "Rates";
+		if ( modelOption == STATES ) return "States";
     if ( modelOption == MARKOV ) return "Markov";
 
     return "Invalid";
@@ -86,6 +88,7 @@ ExprFunc* ExprModel::createNewExprFunc( const ExprPar& par, const SiteVec& sites
         return_exprfunc = new ChrModUnlimited_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
         break;
     case RATES :
+		case STATES :
         parToPass = par.my_factory->changeSpace(par, PROB_SPACE );
         return_exprfunc = new Rates_ExprFunc(this, parToPass, sites_,seq_length,seq_num);
         break;
